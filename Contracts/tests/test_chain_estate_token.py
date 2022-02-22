@@ -1,8 +1,11 @@
 from scripts.common_funcs import retrieve_account, waitForTransactionsToComplete, LOCAL_BLOCKCHAIN_ENVIRONMENTS, DECIMALS
 from scripts.deploy import deploy_chain_estate
 from brownie import network, accounts, exceptions, chain
+from web3 import Web3
 import pytest
 import time
+
+LIQUIDITY_SUPPLY = Web3.toWei(300000000, "ether")
 
 def test_can_transfer_tokens():
     # Arrange
@@ -12,6 +15,9 @@ def test_can_transfer_tokens():
     account = retrieve_account()
     account2 = retrieve_account(2)
     chainEstateToken, chainEstateAirDrop, _ = deploy_chain_estate()
+    uniswapPair = chainEstateToken.uniswapPair()
+    chainEstateToken.transfer(uniswapPair, LIQUIDITY_SUPPLY, {"from": account})
+    chainEstateToken.setContractCHESDivisor(1, {"from": account})
 
     # Act
     chainEstateToken.transfer(account2.address, 10000, {"from": account})
@@ -32,19 +38,25 @@ def test_transaction_fees_work():
     account3 = retrieve_account(3)
     account4 = retrieve_account(4)
     account5 = retrieve_account(5)
-    chainEstateToken, chainEstateAirDrop, _ = deploy_chain_estate(account3.address, account4.address, account5.address, account5.address, account5.address)
+    chainEstateToken, chainEstateAirDrop, _ = deploy_chain_estate(account3.address, account4.address, account5.address, account5.address)
+    uniswapPair = chainEstateToken.uniswapPair()
+    chainEstateToken.transfer(uniswapPair, LIQUIDITY_SUPPLY, {"from": account5})
+    chainEstateToken.setContractCHESDivisor(1, {"from": account})
 
     # Account 3 is the real estate wallet
     realEstateWalletAddress = chainEstateToken.realEstateWalletAddress()
-    # Account 5 is the developer/marketing wallet
+    # Account 4 is the marketing wallet
     marketingWalletAddress = chainEstateToken.marketingWalletAddress()
+    # Account 5 is the developer wallet
     developerWalletAddress = chainEstateToken.developerWalletAddress()
+    chainEstateTokenAddress = chainEstateToken.getContractAddress()
     realEstateInitialBalance = chainEstateToken.balanceOf(realEstateWalletAddress)
     marketingInitialBalance = chainEstateToken.balanceOf(marketingWalletAddress)
     developerInitialBalance = chainEstateToken.balanceOf(developerWalletAddress)
 
     realEstateFee = chainEstateToken.realEstateTransactionFeePercent()
-    devTeamMarketingFee = chainEstateToken.developerFeePercent() + chainEstateToken.marketingFeePercent()
+    marketingFee = chainEstateToken.marketingFeePercent()
+    developerFee = chainEstateToken.developerFeePercent()
 
     # Act
     # Account deployed the smart contract and thus was excluded from fees by default, so needs to be added.
@@ -60,10 +72,16 @@ def test_transaction_fees_work():
 
     # Assert
     assert chainEstateToken.balanceOf(account.address) == tokensSent - transferAmount
-    assert chainEstateToken.balanceOf(account2.address) == transferAmount * ((100 - realEstateFee - devTeamMarketingFee) / 100)
-    assert chainEstateToken.balanceOf(realEstateWalletAddress) == realEstateInitialBalance + transferAmount * (realEstateFee / 100)
-    assert chainEstateToken.balanceOf(marketingWalletAddress) == marketingInitialBalance + transferAmount * (devTeamMarketingFee / 100) - tokensSent
-    assert chainEstateToken.balanceOf(developerWalletAddress) == developerInitialBalance + transferAmount * (devTeamMarketingFee / 100) - tokensSent
+    assert chainEstateToken.balanceOf(account2.address) == transferAmount * ((100 - realEstateFee - marketingFee - developerFee) / 100)
+
+    realEstateFeeAmount = transferAmount * (realEstateFee / 100)
+    marketingFeeAmount = transferAmount * (marketingFee / 100)
+    developerFeeAmount = transferAmount * (developerFee / 100)
+    assert chainEstateToken.balanceOf(chainEstateTokenAddress) == realEstateFeeAmount + marketingFeeAmount + developerFeeAmount
+    
+    # assert chainEstateToken.balanceOf(realEstateWalletAddress) == realEstateInitialBalance + transferAmount * (realEstateFee / 100)
+    # assert chainEstateToken.balanceOf(marketingWalletAddress) == marketingInitialBalance + transferAmount * (devTeamMarketingFee / 100) - tokensSent
+    # assert chainEstateToken.balanceOf(developerWalletAddress) == developerInitialBalance + transferAmount * (devTeamMarketingFee / 100) - tokensSent
 
 def test_air_drop_time_is_calculated_correctly():
     # Arrange
@@ -73,6 +91,9 @@ def test_air_drop_time_is_calculated_correctly():
     account = retrieve_account()
     account2 = retrieve_account(2)
     chainEstateToken, chainEstateAirDrop, _ = deploy_chain_estate()
+    uniswapPair = chainEstateToken.uniswapPair()
+    chainEstateToken.transfer(uniswapPair, LIQUIDITY_SUPPLY, {"from": account})
+    chainEstateToken.setContractCHESDivisor(1, {"from": account})
 
     # Act
     chainEstateToken.transfer(account2.address, 10000, {"from": account})
@@ -91,6 +112,9 @@ def test_air_drop_time_is_calculated_correctly_2():
     account = retrieve_account()
     account2 = retrieve_account(2)
     chainEstateToken, chainEstateAirDrop, _ = deploy_chain_estate()
+    uniswapPair = chainEstateToken.uniswapPair()
+    chainEstateToken.transfer(uniswapPair, LIQUIDITY_SUPPLY, {"from": account})
+    chainEstateToken.setContractCHESDivisor(1, {"from": account})
 
     # Act
     waitSeconds = 5
@@ -112,6 +136,9 @@ def test_air_drop_time_is_calculated_correctly_3():
     account = retrieve_account()
     account2 = retrieve_account(2)
     chainEstateToken, chainEstateAirDrop, _ = deploy_chain_estate()
+    uniswapPair = chainEstateToken.uniswapPair()
+    chainEstateToken.transfer(uniswapPair, LIQUIDITY_SUPPLY, {"from": account})
+    chainEstateToken.setContractCHESDivisor(1, {"from": account})
 
     # Act
     waitSeconds = 10

@@ -55,7 +55,7 @@ contract ChainEstatePolling is Ownable {
     event Vote(address indexed voter, string indexed pollTitle, string indexed proposal, uint numVotes);
  
     // Sets the reference to the contract address for the Chain Estate DAO token with the poll contract is deployed.
-    constructor(address CHESTokenAddress) {
+    constructor(address payable CHESTokenAddress) {
         CHES = ChainEstateToken(CHESTokenAddress);
     }
  

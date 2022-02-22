@@ -1,34 +1,63 @@
-from brownie import network, ChainEstateToken, ChainEstateAirDrop, ChainEstatePolling
+from brownie import network, config, ChainEstateToken, ChainEstateAirDrop, ChainEstatePolling, MockWETH, PancakeRouter, PancakePair, PancakeFactory
 from scripts.common_funcs import retrieve_account, LOCAL_BLOCKCHAIN_ENVIRONMENTS, DONT_PUBLISH_SOURCE_ENVIRONMENTS
 from web3 import Web3
 
 INITIAL_SUPPLY = Web3.toWei(1000000000, "ether")
 
-def deploy_chain_estate(realEstateWalletAddress=None, liquidityWalletAddress=None, marketingWalletAddress=None, developerWalletAddress=None, burnWalletAddress=None):
+PROD_REAL_ESTATE_ADDRESS = "0x965C421073f0aD56a11b2E3aFB80C451038F6178"
+PROD_MARKETING_ADDRESS = "0x4abAc87EeC0AD0932B71037b5d1fc88B7aC2Defd"
+PROD_DEVELOPER_ADDRESS = "0x9406B17dE6949aB3F32e7c6044b0b29e1987f9ab"
+PROD_LIQUIDITY_ADDRESS = "0xB164Eb7844F3A05Fd3eF01CF05Ac4961a74D47fF"
+# PROD_LIQUIDITY_ADDRESS = "0x049CC7022a82015C408C69407Fe833897A687B25"
+BURN_ADDRESS = "0x000000000000000000000000000000000000dEaD"
+
+PROD = True
+
+def deploy_chain_estate(realEstateWalletAddress=None, marketingWalletAddress=None, developerWalletAddress=None, liquidityWalletAddress=None, burnWalletAddress=None):
     account = retrieve_account()
 
-    if not realEstateWalletAddress:
-        realEstateWalletAddress = account.address
-    if not liquidityWalletAddress:
-        liquidityWalletAddress = account.address
-    if not marketingWalletAddress:
-        marketingWalletAddress = account.address
-    if not developerWalletAddress:
-        developerWalletAddress = account.address
-    if not burnWalletAddress:
-        burnWalletAddress = account.address
+    currNetwork = network.show_active()
+    if PROD and currNetwork in config["networks"] and "pancakeswap_router" in config["networks"][currNetwork]:
+        realEstateWalletAddress = PROD_REAL_ESTATE_ADDRESS
+        marketingWalletAddress = PROD_MARKETING_ADDRESS
+        developerWalletAddress = PROD_DEVELOPER_ADDRESS
+        liquidityWalletAddress = PROD_LIQUIDITY_ADDRESS
+        burnWalletAddress = BURN_ADDRESS
+    else:
+        if not realEstateWalletAddress:
+            realEstateWalletAddress = account.address
+        if not marketingWalletAddress:
+            marketingWalletAddress = account.address
+        if not developerWalletAddress:
+            developerWalletAddress = account.address
+        if not liquidityWalletAddress:
+            liquidityWalletAddress = account.address
+        if not burnWalletAddress:
+            # 0x000000000000000000000000000000000000dEaD is a standard burn wallet address.
+            burnWalletAddress = BURN_ADDRESS
 
-    publishSource = network.show_active() not in DONT_PUBLISH_SOURCE_ENVIRONMENTS
+    if currNetwork in config["networks"] and "pancakeswap_router" in config["networks"][currNetwork]:
+        pancakeSwapRouterAddress = config["networks"][currNetwork]["pancakeswap_router"]
+    else:
+        # Deploy mocked PancakeSwap router and factory.
+        WETHAddress = MockWETH.deploy({"from": account})
+        pancakeSwapFactoryAddress = PancakeFactory.deploy(account.address, {"from": account})
+        pancakeSwapRouterAddress = PancakeRouter.deploy(pancakeSwapFactoryAddress, WETHAddress, {"from": account})
+
+
+    publishSource = currNetwork not in DONT_PUBLISH_SOURCE_ENVIRONMENTS
 
     chainEstateAirDrop = ChainEstateAirDrop.deploy({"from": account}, publish_source=publishSource)
+    print(f"Chain Estate air drop deployed to {chainEstateAirDrop.address}")
     chainEstateToken = ChainEstateToken.deploy(
         INITIAL_SUPPLY,
         chainEstateAirDrop.address,
         burnWalletAddress,
-        realEstateWalletAddress,
         liquidityWalletAddress,
+        realEstateWalletAddress,
         marketingWalletAddress,
         developerWalletAddress,
+        pancakeSwapRouterAddress,
         {"from": account},
         publish_source=publishSource
     )

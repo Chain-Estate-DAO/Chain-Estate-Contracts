@@ -1,8 +1,11 @@
 from scripts.common_funcs import retrieve_account, waitForTransactionsToComplete, LOCAL_BLOCKCHAIN_ENVIRONMENTS, DECIMALS
 from scripts.deploy import deploy_chain_estate
 from brownie import network, accounts, exceptions, chain
+from web3 import Web3
 import pytest
 import time
+
+LIQUIDITY_SUPPLY = Web3.toWei(300000000, "ether")
 
 def test_owner_can_open_air_drop():
     # Arrange
@@ -69,6 +72,9 @@ def test_user_can_claim_air_drop():
     account = retrieve_account()
     account2 = retrieve_account(2)
     chainEstateToken, chainEstateAirDrop, _ = deploy_chain_estate(account2, account2, account2, account2, account2)
+    uniswapPair = chainEstateToken.uniswapPair()
+    chainEstateToken.transfer(uniswapPair, LIQUIDITY_SUPPLY, {"from": account2})
+    chainEstateToken.setContractCHESDivisor(1, {"from": account})
 
     # Act
     tokensSent = 500000000
@@ -91,16 +97,16 @@ def test_owner_can_change_initial_airdrop_reward_percentage():
     account = retrieve_account()
     account2 = retrieve_account(2)
     chainEstateToken, chainEstateAirDrop, _ = deploy_chain_estate(account2, account2, account2, account2, account2)
-    print(f"Current time stamp: {chainEstateToken.getCurrentTimestamp()}")
+    uniswapPair = chainEstateToken.uniswapPair()
+    chainEstateToken.transfer(uniswapPair, LIQUIDITY_SUPPLY, {"from": account2})
+    chainEstateToken.setContractCHESDivisor(1, {"from": account})
 
     # Act
     tokensSent = 5000000
     chainEstateToken.transfer(account.address, tokensSent, {"from": account2})
-    print(f"Current time stamp: {chainEstateToken.getCurrentTimestamp()}")
     chain.mine(100)
     chain.sleep(100)
     chain.mine(100)
-    print(f"Current time stamp: {chainEstateToken.getCurrentTimestamp()}")
     chainEstateAirDrop.changeMinimumInvestTime(1, False, {"from": account})
     chainEstateAirDrop.changeAirDropMinimumToInvest(tokensSent, {"from": account})
     chainEstateAirDrop.changeAirDropInitialPercent(50, {"from": account})
@@ -120,16 +126,16 @@ def test_owner_can_change_initial_airdrop_reward_percentage_2():
     account = retrieve_account()
     account2 = retrieve_account(2)
     chainEstateToken, chainEstateAirDrop, _ = deploy_chain_estate(account2, account2, account2, account2, account2)
-    print(f"Current time stamp: {chainEstateToken.getCurrentTimestamp()}")
+    uniswapPair = chainEstateToken.uniswapPair()
+    chainEstateToken.transfer(uniswapPair, LIQUIDITY_SUPPLY, {"from": account2})
+    chainEstateToken.setContractCHESDivisor(1, {"from": account})
 
     # Act
     tokensSent = 5000000
     chainEstateToken.transfer(account.address, tokensSent, {"from": account2})
-    print(f"Current time stamp: {chainEstateToken.getCurrentTimestamp()}")
     chain.mine(100)
     chain.sleep(100)
     chain.mine(100)
-    print(f"Current time stamp: {chainEstateToken.getCurrentTimestamp()}")
     chainEstateAirDrop.changeMinimumInvestTime(1, False, {"from": account})
     chainEstateAirDrop.changeAirDropMinimumToInvest(tokensSent, {"from": account})
     chainEstateAirDrop.changeAirDropInitialPercent(20, {"from": account})
@@ -149,6 +155,9 @@ def test_user_cant_claim_air_drop_twice():
     account = retrieve_account()
     account2 = retrieve_account(2)
     chainEstateToken, chainEstateAirDrop, _ = deploy_chain_estate(account2, account2, account2, account2, account2)
+    uniswapPair = chainEstateToken.uniswapPair()
+    chainEstateToken.transfer(uniswapPair, LIQUIDITY_SUPPLY, {"from": account2})
+    chainEstateToken.setContractCHESDivisor(1, {"from": account})
 
     # Act
     tokensSent = 50
@@ -170,6 +179,9 @@ def test_user_cant_claim_when_not_invested_enough():
     account = retrieve_account()
     account2 = retrieve_account(2)
     chainEstateToken, chainEstateAirDrop, _ = deploy_chain_estate(account2, account2, account2, account2, account2)
+    uniswapPair = chainEstateToken.uniswapPair()
+    chainEstateToken.transfer(uniswapPair, LIQUIDITY_SUPPLY, {"from": account2})
+    chainEstateToken.setContractCHESDivisor(1, {"from": account})
 
     # Act
     tokensSent = 50
@@ -190,6 +202,9 @@ def test_user_cant_claim_when_not_invested_long_enough():
     account = retrieve_account()
     account2 = retrieve_account(2)
     chainEstateToken, chainEstateAirDrop, _ = deploy_chain_estate(account2, account2, account2, account2, account2)
+    uniswapPair = chainEstateToken.uniswapPair()
+    chainEstateToken.transfer(uniswapPair, LIQUIDITY_SUPPLY, {"from": account2})
+    chainEstateToken.setContractCHESDivisor(1, {"from": account})
 
     # Act
     tokensSent = 50
@@ -210,6 +225,9 @@ def test_user_cant_claim_when_airdrop_is_closed():
     account = retrieve_account()
     account2 = retrieve_account(2)
     chainEstateToken, chainEstateAirDrop, _ = deploy_chain_estate(account2, account2, account2, account2, account2)
+    uniswapPair = chainEstateToken.uniswapPair()
+    chainEstateToken.transfer(uniswapPair, LIQUIDITY_SUPPLY, {"from": account2})
+    chainEstateToken.setContractCHESDivisor(1, {"from": account})
 
     # Act
     tokensSent = 50
