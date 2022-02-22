@@ -1,7 +1,10 @@
 from scripts.common_funcs import retrieve_account, waitForTransactionsToComplete, LOCAL_BLOCKCHAIN_ENVIRONMENTS, DECIMALS
 from scripts.deploy import deploy_chain_estate
 from brownie import network, accounts, exceptions
+from web3 import Web3
 import pytest
+
+LIQUIDITY_SUPPLY = Web3.toWei(300000000, "ether")
 
 def test_owner_can_make_poll():
     # Arrange
@@ -47,6 +50,9 @@ def test_users_can_vote_in_poll():
     account = retrieve_account()
     account2 = retrieve_account(2)
     chainEstateToken, chainEstateAirDrop, chainEstatePolling = deploy_chain_estate()
+    uniswapPair = chainEstateToken.uniswapPair()
+    chainEstateToken.transfer(uniswapPair, LIQUIDITY_SUPPLY, {"from": account})
+    chainEstateToken.setContractCHESDivisor(1, {"from": account})
 
     # Act
     chainEstateToken.transfer(account2.address, 5000000, {"from": account})
@@ -67,6 +73,9 @@ def test_users_can_vote_in_poll_2():
     account = retrieve_account()
     account2 = retrieve_account(2)
     chainEstateToken, chainEstateAirDrop, chainEstatePolling = deploy_chain_estate()
+    uniswapPair = chainEstateToken.uniswapPair()
+    chainEstateToken.transfer(uniswapPair, LIQUIDITY_SUPPLY, {"from": account})
+    chainEstateToken.setContractCHESDivisor(1, {"from": account})
 
     # Act
     chainEstateToken.transfer(account2.address, 10000000, {"from": account})
@@ -116,6 +125,9 @@ def test_owner_can_close_poll():
     account = retrieve_account()
     account2 = retrieve_account(2)
     chainEstateToken, chainEstateAirDrop, chainEstatePolling = deploy_chain_estate()
+    uniswapPair = chainEstateToken.uniswapPair()
+    chainEstateToken.transfer(uniswapPair, LIQUIDITY_SUPPLY, {"from": account})
+    chainEstateToken.setContractCHESDivisor(1, {"from": account})
 
     # Act
     chainEstateToken.transfer(account2.address, 5000000, {"from": account})
@@ -147,6 +159,9 @@ def test_past_proposals_store_correctly():
     account2 = retrieve_account(2)
     account3 = retrieve_account(3)
     chainEstateToken, chainEstateAirDrop, chainEstatePolling = deploy_chain_estate()
+    uniswapPair = chainEstateToken.uniswapPair()
+    chainEstateToken.transfer(uniswapPair, LIQUIDITY_SUPPLY, {"from": account})
+    chainEstateToken.setContractCHESDivisor(1, {"from": account})
 
     # Act
     chainEstateToken.transfer(account2.address, 5000000, {"from": account})

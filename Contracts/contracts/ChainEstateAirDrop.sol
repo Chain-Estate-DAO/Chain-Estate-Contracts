@@ -25,7 +25,7 @@ contract ChainEstateAirDrop is Ownable {
     uint256 public airDropInitialPercent = 10;
 
     // How long users have to hold their CHES tokens before they can participate in airdrops.
-    uint256 public minimumInvestTime = 30 days;
+    uint256 public minimumInvestTime = 14 days;
 
     // Mapping that determines if each user has already claimed their air drop rewards - resets every new air drop
     mapping(address => bool) public userClaimedAirDrop;
@@ -40,7 +40,7 @@ contract ChainEstateAirDrop is Ownable {
     * @dev Once the CHES token contract is deployed, this function is used to set a reference to that token in this contract.
     * @param CHESTokenAddress address of the ChainEstate token.
      */
-    function setToken(address CHESTokenAddress) public onlyOwner {
+    function setToken(address payable CHESTokenAddress) public onlyOwner {
         CHES = ChainEstateToken(CHESTokenAddress);
     }
  

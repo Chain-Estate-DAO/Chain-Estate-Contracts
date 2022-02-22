@@ -28,7 +28,7 @@ contract ChainEstatePreSale is Ownable {
     * @dev Once the CHES token contract is deployed, this function is used to set a reference to that token in this contract.
     * @param CHESTokenAddress address of the ChainEstate token.
      */
-    function setToken(address CHESTokenAddress) public onlyOwner {
+    function setToken(address payable CHESTokenAddress) public onlyOwner {
         CHES = ChainEstateToken(CHESTokenAddress);
     }
 
