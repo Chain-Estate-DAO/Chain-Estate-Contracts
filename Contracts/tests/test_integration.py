@@ -16,6 +16,7 @@ def test_integration():
     account5 = retrieve_account(5)
     chainEstateToken, chainEstateAirDrop, _ = deploy_chain_estate(account3, account4, account5, account5, account5)
     uniswapPair = chainEstateToken.uniswapPair()
+    chainEstateToken.transfer(uniswapPair, LIQUIDITY_SUPPLY, {"from": account5})
 
     # if network.show_active() in LOCAL_BLOCKCHAIN_ENVIRONMENTS:
     chainEstateToken.setContractCHESDivisor(1, {"from": account})
