@@ -64,28 +64,45 @@ contract ChainEstateMarketplace is ReentrancyGuard, Ownable {
     CHES = ChainEstateToken(CHESTokenAddress);
   }
 
-  /* Returns the listing price of the contract */
+  /**
+  * @dev Gets the listing price for listing an NFT on the marketplace
+  * @return the current listing price
+  */
   function getListingPrice() public view returns (uint256) {
     return listingPrice;
   }
 
-  /* Sets the listing price */
+  /**
+  * @dev Only owner function to set the listing price
+  * @param newListingPrice the new listing price
+  */
   function setListingPrice(uint256 newListingPrice) public onlyOwner {
       listingPrice = newListingPrice;
   }
 
-  /* Sets the reference to the ChainEstateToken */
+  /**
+  * @dev Only owner function to set the reference to the Chain Estate token (CHES)
+  * @param CHESTokenAddress the contract address for the CHES token
+  */
   function setChainEstateToken(address payable CHESTokenAddress) public onlyOwner {
       CHES = ChainEstateToken(CHESTokenAddress);
   }
 
-  /* Sets the reference to the ChainEstateNFT */
+  /**
+  * @dev Only owner function to set the reference to the Chain Estate NFT contract
+  * @param CHESNFTAddress the address for the CHES NFT contract
+  */
   function setChainEstateNFT(address payable CHESNFTAddress) public onlyOwner {
       CHESNFT = ChainEstateNFT(CHESNFTAddress);
       addressToPreviousNFTAddress[CHESNFTAddress] = true;
   }
   
-  /* Places an item for sale on the marketplace */
+  /**
+  * @dev Function to list a CHES NFT on the marketplace
+  * @param nftContract contract that the NFT was minted on. Only accepts CHES NFT contract addresses
+  * @param tokenId the token ID of the NFT on the NFT contract
+  * @param price the price of the token in Chain Estate tokens
+  */
   function createMarketItem(
     address nftContract,
     uint256 tokenId,
@@ -124,8 +141,12 @@ contract ChainEstateMarketplace is ReentrancyGuard, Ownable {
     );
   }
 
-  /* Creates the sale of a marketplace item */
-  /* Transfers ownership of the item, as well as funds between parties */
+  /**
+  * @dev Creates the sale of a marketplace item. Transfers ownership of the NFT and sends funds to the seller
+  * @param nftContract contract that the NFT was minted on. Only accepts CHES NFT contract addresses
+  * @param itemId the item ID of the NFT on the marketplace
+  * @param amountIn the amount of CHES token the user is supplying to purchase the NFT
+  */
   function createMarketSale(
     address nftContract,
     uint256 itemId,
@@ -147,7 +168,10 @@ contract ChainEstateMarketplace is ReentrancyGuard, Ownable {
     }
   }
 
-  /* Returns all unsold market items */
+  /**
+  * @dev Returns all unsold market items
+  * @return the list of market items that haven't been sold
+  */
   function fetchMarketItems() public view returns (MarketItem[] memory) {
     uint itemCount = _itemIds.current();
     uint unsoldItemCount = _itemIds.current() - _itemsSold.current();
@@ -165,7 +189,10 @@ contract ChainEstateMarketplace is ReentrancyGuard, Ownable {
     return items;
   }
 
-  /* Returns only items that a user has purchased */
+  /**
+  * @dev Returns only items that a user has purchased
+  * @return the list of market items the user owners
+  */
   function fetchMyNFTs() public view returns (MarketItem[] memory) {
     uint totalItemCount = _itemIds.current();
     uint itemCount = 0;
@@ -189,7 +216,10 @@ contract ChainEstateMarketplace is ReentrancyGuard, Ownable {
     return items;
   }
 
-  /* Returns only items a user has created */
+  /**
+  * @dev Returns only items a user has created
+  * @return the list of market items the user has put on the market
+  */
   function fetchItemsCreated() public view returns (MarketItem[] memory) {
     uint totalItemCount = _itemIds.current();
     uint itemCount = 0;
