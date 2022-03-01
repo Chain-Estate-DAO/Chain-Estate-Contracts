@@ -8,10 +8,9 @@ PROD_REAL_ESTATE_ADDRESS = "0x965C421073f0aD56a11b2E3aFB80C451038F6178"
 PROD_MARKETING_ADDRESS = "0x4abAc87EeC0AD0932B71037b5d1fc88B7aC2Defd"
 PROD_DEVELOPER_ADDRESS = "0x9406B17dE6949aB3F32e7c6044b0b29e1987f9ab"
 PROD_LIQUIDITY_ADDRESS = "0xB164Eb7844F3A05Fd3eF01CF05Ac4961a74D47fF"
-# PROD_LIQUIDITY_ADDRESS = "0x049CC7022a82015C408C69407Fe833897A687B25"
 BURN_ADDRESS = "0x000000000000000000000000000000000000dEaD"
 
-PROD = True
+PROD = False
 
 def deploy_chain_estate(realEstateWalletAddress=None, marketingWalletAddress=None, developerWalletAddress=None, liquidityWalletAddress=None, burnWalletAddress=None):
     account = retrieve_account()
@@ -48,6 +47,11 @@ def deploy_chain_estate(realEstateWalletAddress=None, marketingWalletAddress=Non
     publishSource = currNetwork not in DONT_PUBLISH_SOURCE_ENVIRONMENTS
 
     chainEstateAirDrop = ChainEstateAirDrop.deploy({"from": account}, publish_source=publishSource)
+    if type(chainEstateAirDrop) == 'TransactionReceipt':
+        print(dir(chainEstateAirDrop))
+        chainEstateAirDrop.wait(1)
+        chainEstateAirDrop = chainEstateAirDrop.return_value
+    
     print(f"Chain Estate air drop deployed to {chainEstateAirDrop.address}")
     chainEstateToken = ChainEstateToken.deploy(
         INITIAL_SUPPLY,
@@ -61,6 +65,11 @@ def deploy_chain_estate(realEstateWalletAddress=None, marketingWalletAddress=Non
         {"from": account},
         publish_source=publishSource
     )
+
+    if type(chainEstateToken) == 'TransactionReceipt':
+        chainEstateToken.wait(1)
+        chainEstateToken = chainEstateToken.return_value
+
     print(f"Chain Estate Token deployed to {chainEstateToken.address}")
 
     chainEstatePolling = ChainEstatePolling.deploy(chainEstateToken.address, {"from": account}, publish_source=publishSource)
