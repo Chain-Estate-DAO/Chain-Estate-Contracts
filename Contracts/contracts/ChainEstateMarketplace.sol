@@ -21,8 +21,8 @@ contract ChainEstateMarketplace is ReentrancyGuard, Ownable {
   // Counter to keep track of how many items have been sold on the CHES marketplace.
   Counters.Counter public _itemsSold;
 
-  // The listing fee for any users that want to resell their CHES NFTs.
-  uint256 listingPrice = 0.2 ether;
+  // The default listing fee for any users that want to resell their CHES NFTs.
+  uint256 defaultListingPrice = 0.05 ether;
 
   // Properties of a CHES NFT on the marketplace.
   struct MarketItem {
@@ -33,6 +33,8 @@ contract ChainEstateMarketplace is ReentrancyGuard, Ownable {
     address payable owner;
     uint256 price;
     bool sold;
+    string tokenURI;
+    uint256 listingPrice;
   }
 
   // Maps each NFT's marketplace item ID to all of the properties for the NFT on the marketplace.
@@ -51,7 +53,9 @@ contract ChainEstateMarketplace is ReentrancyGuard, Ownable {
     address seller,
     address owner,
     uint256 price,
-    bool sold
+    bool sold,
+    string tokenURI,
+    uint256 listingPrice
   );
 
   // References the deployed Chain Estate token.
@@ -68,16 +72,16 @@ contract ChainEstateMarketplace is ReentrancyGuard, Ownable {
   * @dev Gets the listing price for listing an NFT on the marketplace
   * @return the current listing price
   */
-  function getListingPrice() public view returns (uint256) {
-    return listingPrice;
+  function getDefaultListingPrice() public view returns (uint256) {
+    return defaultListingPrice;
   }
 
   /**
   * @dev Only owner function to set the listing price
-  * @param newListingPrice the new listing price
+  * @param newDefaultListingPrice the new default listing price
   */
-  function setListingPrice(uint256 newListingPrice) public onlyOwner {
-      listingPrice = newListingPrice;
+  function setDefaultListingPrice(uint256 newDefaultListingPrice) public onlyOwner {
+      defaultListingPrice = newDefaultListingPrice;
   }
 
   /**
@@ -109,10 +113,15 @@ contract ChainEstateMarketplace is ReentrancyGuard, Ownable {
     uint256 price
   ) public payable nonReentrant {
     require(addressToPreviousNFTAddress[nftContract], "This isn't a valid Chain Estate DAO NFT contract.");
-    require(price > 0, "Price must be at least 1 wei");
+    require(price > 0, "The NFT price must be at least 1 wei.");
+
+    uint256 nftListingPrice = (price / 100) * CHESNFT.tokenIdToListingFeePercentage(tokenId);
+    if (nftListingPrice == 0) {
+      nftListingPrice = defaultListingPrice;
+    }
 
     if (msg.sender != owner()) {
-        require(msg.value == listingPrice, "Price must be equal to listing price");
+        require(msg.value == nftListingPrice, "Not enough or too much BNB was sent to pay the NFT listing fee.");
     }
 
     _itemIds.increment();
@@ -125,7 +134,9 @@ contract ChainEstateMarketplace is ReentrancyGuard, Ownable {
       payable(msg.sender),
       payable(address(0)),
       price,
-      false
+      false,
+      IERC721Metadata(nftContract).tokenURI(tokenId),
+      nftListingPrice
     );
 
     IERC721(nftContract).transferFrom(msg.sender, address(this), tokenId);
@@ -137,7 +148,9 @@ contract ChainEstateMarketplace is ReentrancyGuard, Ownable {
       msg.sender,
       address(0),
       price,
-      false
+      false,
+      IERC721Metadata(nftContract).tokenURI(tokenId),
+      nftListingPrice
     );
   }
 
@@ -153,8 +166,13 @@ contract ChainEstateMarketplace is ReentrancyGuard, Ownable {
     uint256 amountIn
     ) public nonReentrant {
     require(addressToPreviousNFTAddress[nftContract], "This isn't a valid Chain Estate DAO NFT contract.");
-    uint price = idToMarketItem[itemId].price;
+
     uint tokenId = idToMarketItem[itemId].tokenId;
+    if (CHESNFT.tokenIdToWhitelistAddress(tokenId) != address(0) && idToMarketItem[itemId].seller == owner()) {
+      require(msg.sender == CHESNFT.tokenIdToWhitelistAddress(tokenId), "This NFT has been assigned to someone through a Whitelist spot. Only they can purchase this NFT.");
+    }
+
+    uint price = idToMarketItem[itemId].price;
     require(amountIn == price, "Please submit the asking price in order to complete the purchase");
 
     CHES.transferFrom(msg.sender, idToMarketItem[itemId].seller, amountIn);
@@ -164,7 +182,41 @@ contract ChainEstateMarketplace is ReentrancyGuard, Ownable {
     idToMarketItem[itemId].sold = true;
     _itemsSold.increment();
     if (idToMarketItem[itemId].seller != owner()) {
-        payable(owner()).transfer(listingPrice);
+        uint256[] memory reflectionTokenIds = CHESNFT.getReflectionTokenIds();
+
+        for (uint256 i=0; i < reflectionTokenIds.length; i++) {
+          if (CHESNFT.ownerOf(reflectionTokenIds[i]) == msg.sender) {
+            payable(owner()).transfer(idToMarketItem[itemId].listingPrice / reflectionTokenIds.length);
+          }
+          else {
+            payable(CHESNFT.ownerOf(reflectionTokenIds[i])).transfer(idToMarketItem[itemId].listingPrice / reflectionTokenIds.length);
+          }
+        }
+    }
+  }
+
+  /**
+  * @dev Cancels an NFT listing on the marketplace and returns the listing fee to the seller
+  * @param nftContract contract that the NFT was minted on. Only accepts CHES NFT contract addresses
+  * @param itemId the item ID of the NFT on the marketplace
+  */
+  function cancelMarketSale(
+    address nftContract,
+    uint256 itemId
+    ) public nonReentrant {
+    require(addressToPreviousNFTAddress[nftContract], "This isn't a valid Chain Estate DAO NFT contract.");
+    uint tokenId = idToMarketItem[itemId].tokenId;
+    address itemSeller = idToMarketItem[itemId].seller;
+    bool itemSold = idToMarketItem[itemId].sold;
+    require(itemSeller == msg.sender, "You can only cancel your own NFT listings.");
+    require(!itemSold, "This NFT has already been sold.");
+
+    IERC721(nftContract).transferFrom(address(this), msg.sender, tokenId);
+    idToMarketItem[itemId].owner = payable(msg.sender);
+    idToMarketItem[itemId].sold = true;
+    _itemsSold.increment();
+    if (idToMarketItem[itemId].seller != owner()) {
+        payable(msg.sender).transfer(idToMarketItem[itemId].listingPrice);
     }
   }
 
@@ -191,22 +243,23 @@ contract ChainEstateMarketplace is ReentrancyGuard, Ownable {
 
   /**
   * @dev Returns only items that a user has purchased
+  * @param user the user to fetch the NFTs for
   * @return the list of market items the user owners
   */
-  function fetchMyNFTs() public view returns (MarketItem[] memory) {
+  function fetchMyNFTs(address user) public view returns (MarketItem[] memory) {
     uint totalItemCount = _itemIds.current();
     uint itemCount = 0;
     uint currentIndex = 0;
 
     for (uint i = 0; i < totalItemCount; i++) {
-      if (idToMarketItem[i + 1].owner == msg.sender) {
+      if (idToMarketItem[i + 1].owner == user) {
         itemCount += 1;
       }
     }
 
     MarketItem[] memory items = new MarketItem[](itemCount);
     for (uint i = 0; i < totalItemCount; i++) {
-      if (idToMarketItem[i + 1].owner == msg.sender) {
+      if (idToMarketItem[i + 1].owner == user) {
         uint currentId = i + 1;
         MarketItem storage currentItem = idToMarketItem[currentId];
         items[currentIndex] = currentItem;
@@ -218,22 +271,51 @@ contract ChainEstateMarketplace is ReentrancyGuard, Ownable {
 
   /**
   * @dev Returns only items a user has created
+  * @param user the user to fetch the items created for
   * @return the list of market items the user has put on the market
   */
-  function fetchItemsCreated() public view returns (MarketItem[] memory) {
+  function fetchItemsCreated(address user) public view returns (MarketItem[] memory) {
     uint totalItemCount = _itemIds.current();
     uint itemCount = 0;
     uint currentIndex = 0;
 
     for (uint i = 0; i < totalItemCount; i++) {
-      if (idToMarketItem[i + 1].seller == msg.sender) {
+      if (idToMarketItem[i + 1].seller == user) {
         itemCount += 1;
       }
     }
 
     MarketItem[] memory items = new MarketItem[](itemCount);
     for (uint i = 0; i < totalItemCount; i++) {
-      if (idToMarketItem[i + 1].seller == msg.sender) {
+      if (idToMarketItem[i + 1].seller == user) {
+        uint currentId = i + 1;
+        MarketItem storage currentItem = idToMarketItem[currentId];
+        items[currentIndex] = currentItem;
+        currentIndex += 1;
+      }
+    }
+    return items;
+  }
+
+  /**
+  * @dev Returns only items a user has created that are currently for sale
+  * @param user the user to fetch the unsold market items for
+  * @return the list of market items the user has put on the market that are currently for sale
+  */
+  function fetchUnsoldItemsCreated(address user) public view returns (MarketItem[] memory) {
+    uint totalItemCount = _itemIds.current();
+    uint itemCount = 0;
+    uint currentIndex = 0;
+
+    for (uint i = 0; i < totalItemCount; i++) {
+      if (idToMarketItem[i + 1].seller == user && !idToMarketItem[i + 1].sold) {
+        itemCount += 1;
+      }
+    }
+
+    MarketItem[] memory items = new MarketItem[](itemCount);
+    for (uint i = 0; i < totalItemCount; i++) {
+      if (idToMarketItem[i + 1].seller == user && !idToMarketItem[i + 1].sold) {
         uint currentId = i + 1;
         MarketItem storage currentItem = idToMarketItem[currentId];
         items[currentIndex] = currentItem;
