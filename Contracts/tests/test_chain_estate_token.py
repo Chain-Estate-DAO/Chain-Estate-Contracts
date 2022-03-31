@@ -206,3 +206,61 @@ def test_only_owner_can_include_users_from_fees():
     with pytest.raises(exceptions.VirtualMachineError) as ex:
         chainEstateToken.includeUsersInFees(chainEstateAirDrop.address, {"from": nonOwner})
     assert "Ownable: caller is not the owner" in str(ex.value)
+
+def test_transaction_fee_works_on_transfer_from():
+    # Arrange
+    if network.show_active() not in LOCAL_BLOCKCHAIN_ENVIRONMENTS:
+        pytest.skip("This test is only for local blockchains.")
+
+    account = retrieve_account()
+    account2 = retrieve_account(2)
+    account3 = retrieve_account(3)
+    account4 = retrieve_account(4)
+    account5 = retrieve_account(5)
+    chainEstateToken, chainEstateAirDrop, _ = deploy_chain_estate(account3.address, account4.address, account5.address, account5.address)
+    uniswapPair = chainEstateToken.uniswapPair()
+    chainEstateToken.transfer(uniswapPair, LIQUIDITY_SUPPLY, {"from": account5})
+    chainEstateToken.setContractCHESDivisor(1, {"from": account})
+
+    # Account 3 is the real estate wallet
+    realEstateWalletAddress = chainEstateToken.realEstateWalletAddress()
+    # Account 4 is the marketing wallet
+    marketingWalletAddress = chainEstateToken.marketingWalletAddress()
+    # Account 5 is the developer wallet
+    developerWalletAddress = chainEstateToken.developerWalletAddress()
+    chainEstateTokenAddress = chainEstateToken.getContractAddress()
+    realEstateInitialBalance = chainEstateToken.balanceOf(realEstateWalletAddress)
+    marketingInitialBalance = chainEstateToken.balanceOf(marketingWalletAddress)
+    developerInitialBalance = chainEstateToken.balanceOf(developerWalletAddress)
+
+    realEstateFee = chainEstateToken.realEstateTransactionFeePercent()
+    marketingFee = chainEstateToken.marketingFeePercent()
+    developerFee = chainEstateToken.developerFeePercent()
+
+    # Act
+    tokenAmount = 1000000
+    initialAccountBalance = chainEstateToken.balanceOf(account.address)
+    initialAccount2Balance = chainEstateToken.balanceOf(account2.address)
+    chainEstateToken.transfer(account.address, tokenAmount, {"from": account5})
+    chainEstateToken.transfer(account2.address, tokenAmount, {"from": account5})
+
+    assert chainEstateToken.balanceOf(account.address) == initialAccountBalance + tokenAmount
+    assert chainEstateToken.balanceOf(account2.address) == initialAccount2Balance + tokenAmount
+
+    # Approve account 1 to spend account 2's tokens and then spend them with the transferFrom function.
+    initialAccount2Balance = chainEstateToken.balanceOf(account2.address)
+    initialAccount3Balance = chainEstateToken.balanceOf(account3.address)
+    chainEstateToken.includeUsersInFees(account3.address, {"from": account})
+    chainEstateToken.approve(account.address, tokenAmount, {"from": account2})
+    chainEstateToken.transferFrom(account2.address, account3.address, tokenAmount, {"from": account})
+
+    # Assert
+    assert chainEstateToken.balanceOf(account3.address) == initialAccount3Balance + tokenAmount * ((100 - realEstateFee - marketingFee - developerFee) / 100)
+    assert chainEstateToken.balanceOf(account2.address) == initialAccount2Balance - tokenAmount
+
+    realEstateFeeAmount = tokenAmount * (realEstateFee / 100)
+    marketingFeeAmount = tokenAmount * (marketingFee / 100)
+    developerFeeAmount = tokenAmount * (developerFee / 100)
+    assert chainEstateToken.balanceOf(chainEstateTokenAddress) == realEstateFeeAmount + marketingFeeAmount + developerFeeAmount
+
+    # Assert

@@ -20,6 +20,9 @@ contract ChainEstateToken is ERC20, Ownable {
     // Mapping to determine the timestamp of each address' investment. Earlier average investment = better air drop rewards.
     mapping (address => uint256) public airDropInvestTime;
 
+    // Blacklist mapping to prevent addresses from trading if necessary (i.e. flagged for malicious activity).
+    mapping (address => bool) public blacklist;
+
     // Address of the contract responsible for the air dropping mechanism.
     address public airDropContractAddress;
 
@@ -145,6 +148,11 @@ contract ChainEstateToken is ERC20, Ownable {
      * @return bool representing if the transfer was successful
      */
     function transfer(address recipient, uint256 amount) public override returns (bool) {
+        // Ensure the sender isn't blacklisted.
+        require(!blacklist[_msgSender()], "You have been blacklisted from trading the CHES token. If you think this is an error, please contact the Chain Estate DAO team.");
+        // Ensure the recipient isn't blacklisted.
+        require(!blacklist[recipient], "The address you are trying to send CHES to has been blacklisted from trading the CHES token. If you think this is an error, please contact the Chain Estate DAO team.");
+
         // Stops investors from owning more than 2% of the total supply from purchasing CHES from PancakeSwap.
         if (_msgSender() == uniswapPair && !excludedFromFees[_msgSender()] && !excludedFromFees[recipient]) {
             require((balanceOf(recipient) + amount) < (totalSupply() / 166), "You can't have more than 2% of the total CHES supply after a PancakeSwap swap.");
@@ -191,6 +199,56 @@ contract ChainEstateToken is ERC20, Ownable {
     }
 
     /**
+     * @dev Overrides the BEP20 transferFrom function to include transaction fees.
+     * @param from the address from where the tokens are coming from
+     * @param to the recipient of the transfer
+     * @param amount the amount to be transfered
+     * @return bool representing if the transfer was successful
+     */
+    function transferFrom(address from, address to, uint256 amount) public override returns (bool) {
+        // If the from address or to address is excluded from fees, perform the default transferFrom.
+        if (excludedFromFees[from] || excludedFromFees[to]) {
+            _spendAllowance(from, _msgSender(), amount);
+            _transfer(from, to, amount);
+            return true;
+        }
+
+        // Real estate transaction fee.
+        uint256 realEstateFee = (amount * realEstateTransactionFeePercent) / 100;
+        // Marketing team transaction fee.
+        uint256 marketingFee = (amount * marketingFeePercent) / 100;
+        // Developer team transaction fee.
+        uint256 developerFee = (amount * developerFeePercent) / 100;
+
+        // The total fee to send to the contract address.
+        uint256 totalFee = realEstateFee + marketingFee + developerFee;
+ 
+        // Sends the transaction fees to the contract address
+        _spendAllowance(from, _msgSender(), amount);
+        _transfer(from, address(this), totalFee);
+
+        uint256 contractCHESBalance = balanceOf(address(this));
+
+        if (_msgSender() != uniswapPair && contractCHESBalance > 0) {
+            if (contractCHESBalance > 0) {
+                if (contractCHESBalance > balanceOf(uniswapPair) / contractCHESDivisor) {
+                    swapCHESForBNB(contractCHESBalance);
+                }
+                
+            }
+            uint256 contractBNBBalance = address(this).balance;
+            if (contractBNBBalance > 0) {
+                sendFeesToWallets(address(this).balance);
+            }
+        }
+ 
+        // Sends [initial amount] - [fees] to the recipient
+        uint256 valueAfterFees = amount - totalFee;
+        _transfer(from, to, valueAfterFees);
+        return true;
+    }
+
+    /**
      * @dev Swaps CHES tokens from transaction fees to BNB.
      * @param amount the amount of CHES tokens to swap
      */
@@ -223,8 +281,18 @@ contract ChainEstateToken is ERC20, Ownable {
      * @dev Sends BNB to transaction fee wallets manually as opposed to happening automatically after a certain level of volume
      */
     function disperseFeesManually() public onlyOwner {
-        uint256 contractETHBalance = address(this).balance;
-        sendFeesToWallets(contractETHBalance);
+        uint256 contractBNBBalance = address(this).balance;
+        sendFeesToWallets(contractBNBBalance);
+    }
+
+    /**
+     * @dev Swaps all CHES tokens in the contract for BNB and then disperses those funds to the transaction fee wallets.
+     */
+    function swapCHESForBNBManually() public onlyOwner {
+        uint256 contractCHESBalance = balanceOf(address(this));
+        swapCHESForBNB(contractCHESBalance);
+        uint256 contractBNBBalance = address(this).balance;
+        sendFeesToWallets(contractBNBBalance);
     }
 
     receive() external payable {}

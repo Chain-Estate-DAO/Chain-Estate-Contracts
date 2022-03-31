@@ -141,7 +141,7 @@ contract ChainEstateAirDrop is Ownable {
             canClaimRewardsIn = Strings.toString((userTimeStamp + minimumInvestTime - currTimeStamp) / 60 / 60 / 24);
         }
 
-        require(userTimeStamp <= currTimeStamp - minimumInvestTime, string(abi.encodePacked("Too many of your recent investments were made to close to the air drop time. You can claim your rewards in ", canClaimRewardsIn, " day(s). The air drop will still be open then.")));
+        require(userTimeStamp <= currTimeStamp - minimumInvestTime, string(abi.encodePacked("Too many of your recent investments were made too close to the air drop time. You can claim your rewards in ", canClaimRewardsIn, " day(s). The air drop will still be open then.")));
 
         // Initial percentage gained from claiming air drop.
         uint256 initialAmount = (CHES.balanceOf(claimAddress) / 100) * airDropInitialPercent;

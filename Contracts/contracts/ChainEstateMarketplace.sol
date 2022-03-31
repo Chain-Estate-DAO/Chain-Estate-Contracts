@@ -45,6 +45,10 @@ contract ChainEstateMarketplace is ReentrancyGuard, Ownable {
   // to sell an NFT from a contract that isn't true in this mapping, it will be rejected.
   mapping (address => bool) public addressToPreviousNFTAddress;
 
+  // Blacklist mapping for listing and purchasing CHES NFTs.
+  // If this mapping is true for an address then they can't use the marketplace.
+  mapping (address => bool) public blacklist;
+
   // Event emitted whenever a CHES NFT is put up for sale on the CHES marketplace.
   event MarketItemCreated (
     uint indexed itemId,
@@ -113,15 +117,19 @@ contract ChainEstateMarketplace is ReentrancyGuard, Ownable {
     uint256 price
   ) public payable nonReentrant {
     require(addressToPreviousNFTAddress[nftContract], "This isn't a valid Chain Estate DAO NFT contract.");
+    require(!blacklist[msg.sender], "You have been blacklisted from the CHES NFT marketplace. If you think this is an error, please contact the Chain Estate DAO team.");
     require(price > 0, "The NFT price must be at least 1 wei.");
 
-    uint256 nftListingPrice = (price / 100) * CHESNFT.tokenIdToListingFeePercentage(tokenId);
+    uint256 nftListingPrice = CHESNFT.tokenIdToListingFee(tokenId);
     if (nftListingPrice == 0) {
       nftListingPrice = defaultListingPrice;
     }
 
     if (msg.sender != owner()) {
         require(msg.value == nftListingPrice, "Not enough or too much BNB was sent to pay the NFT listing fee.");
+    }
+    else {
+      payable(owner()).transfer(msg.value);
     }
 
     _itemIds.increment();
@@ -166,6 +174,8 @@ contract ChainEstateMarketplace is ReentrancyGuard, Ownable {
     uint256 amountIn
     ) public nonReentrant {
     require(addressToPreviousNFTAddress[nftContract], "This isn't a valid Chain Estate DAO NFT contract.");
+    require(!blacklist[msg.sender], "You have been blacklisted from the CHES NFT marketplace. If you think this is an error, please contact the Chain Estate DAO team.");
+    require(!idToMarketItem[itemId].sold, "This marketplace item has already been sold.");
 
     uint tokenId = idToMarketItem[itemId].tokenId;
     if (CHESNFT.tokenIdToWhitelistAddress(tokenId) != address(0) && idToMarketItem[itemId].seller == owner()) {
@@ -185,7 +195,7 @@ contract ChainEstateMarketplace is ReentrancyGuard, Ownable {
         uint256[] memory reflectionTokenIds = CHESNFT.getReflectionTokenIds();
 
         for (uint256 i=0; i < reflectionTokenIds.length; i++) {
-          if (CHESNFT.ownerOf(reflectionTokenIds[i]) == msg.sender) {
+          if (CHESNFT.ownerOf(reflectionTokenIds[i]) == msg.sender && reflectionTokenIds[i] == tokenId) {
             payable(owner()).transfer(idToMarketItem[itemId].listingPrice / reflectionTokenIds.length);
           }
           else {
@@ -205,18 +215,19 @@ contract ChainEstateMarketplace is ReentrancyGuard, Ownable {
     uint256 itemId
     ) public nonReentrant {
     require(addressToPreviousNFTAddress[nftContract], "This isn't a valid Chain Estate DAO NFT contract.");
+    require(!blacklist[msg.sender], "You have been blacklisted from the CHES NFT marketplace. If you think this is an error, please contact the Chain Estate DAO team.");
     uint tokenId = idToMarketItem[itemId].tokenId;
     address itemSeller = idToMarketItem[itemId].seller;
     bool itemSold = idToMarketItem[itemId].sold;
-    require(itemSeller == msg.sender, "You can only cancel your own NFT listings.");
+    require(itemSeller == msg.sender || msg.sender == owner(), "You can only cancel your own NFT listings.");
     require(!itemSold, "This NFT has already been sold.");
 
-    IERC721(nftContract).transferFrom(address(this), msg.sender, tokenId);
-    idToMarketItem[itemId].owner = payable(msg.sender);
+    IERC721(nftContract).transferFrom(address(this), idToMarketItem[itemId].seller, tokenId);
+    idToMarketItem[itemId].owner = payable(idToMarketItem[itemId].seller);
     idToMarketItem[itemId].sold = true;
     _itemsSold.increment();
     if (idToMarketItem[itemId].seller != owner()) {
-        payable(msg.sender).transfer(idToMarketItem[itemId].listingPrice);
+        payable(idToMarketItem[itemId].seller).transfer(idToMarketItem[itemId].listingPrice);
     }
   }
 
@@ -324,4 +335,14 @@ contract ChainEstateMarketplace is ReentrancyGuard, Ownable {
     }
     return items;
   }
+
+  /**
+  * @dev Updates the blacklist mapping for a given address
+  * @param user the address that is being added or removed from the blacklist
+  * @param blacklisted a boolean that determines if the given address is being added or removed from the blacklist
+  */
+  function updateBlackList(address user, bool blacklisted) public onlyOwner {
+    blacklist[user] = blacklisted;
+  }
+
 }

@@ -24,7 +24,7 @@ contract ChainEstateNFT is ERC721URIStorage, Ownable {
     mapping(uint256 => uint256) public tokenIdToPropertyId;
 
     // Each NFT will have a unique listing fee that is kept track of in this mapping.
-    mapping(uint256 => uint256) public tokenIdToListingFeePercentage;
+    mapping(uint256 => uint256) public tokenIdToListingFee;
 
     // Mapping of token ID to address for whitelist spots.
     mapping(uint256 => address) public tokenIdToWhitelistAddress;
@@ -43,16 +43,16 @@ contract ChainEstateNFT is ERC721URIStorage, Ownable {
     * @dev Only owner function to mint a new NFT that's associated with a property.
     * @param tokenURI the token URI on IPFS for the NFT metadata
     * @param propertyId the ID of the property the NFT will be associated with
-    * @param listingFeePercentage the percentage of the NFT price that will be charged as the listing fee
+    * @param listingFee the fee the user pays when putting the NFT for sale on the marketplace
     * @return the ID of the newly minted NFT
      */
-    function createToken(string memory tokenURI, uint256 propertyId, uint256 listingFeePercentage) public onlyOwner returns (uint) {
+    function createToken(string memory tokenURI, uint256 propertyId, uint256 listingFee) public onlyOwner returns (uint) {
         _tokenIds.increment();
         uint256 newItemId = _tokenIds.current();
 
         _mint(msg.sender, newItemId);
         tokenIdToPropertyId[newItemId] = propertyId;
-        tokenIdToListingFeePercentage[newItemId] = listingFeePercentage;
+        tokenIdToListingFee[newItemId] = listingFee;
         _setTokenURI(newItemId, tokenURI);
         approve(address(this), newItemId);
         setApprovalForAll(marketplaceAddress, true);
@@ -110,4 +110,31 @@ contract ChainEstateNFT is ERC721URIStorage, Ownable {
     function addWhiteListToToken(address whiteListAddress, uint256 tokenId) public onlyOwner {
         tokenIdToWhitelistAddress[tokenId] = whiteListAddress;
     }
+
+    /**
+    * @dev updates the listing fee of an NFT.
+    * @param tokenId the ID of the NFT to update the listing fee of
+    * @param newListingFee the listing fee value for the NFT
+     */
+    function updateTokenListingFee(uint256 tokenId, uint256 newListingFee) public onlyOwner {
+        tokenIdToListingFee[tokenId] = newListingFee;
+    }
+
+    /**
+    * @dev updates the property ID of an NFT.
+    * @param tokenId the ID of the NFT to update the property ID of
+    * @param newPropertyId the property ID value for the NFT
+     */
+    function updateTokenPropertyId(uint256 tokenId, uint256 newPropertyId) public onlyOwner {
+        tokenIdToPropertyId[tokenId] = newPropertyId;
+    }
+
+    /**
+    * @dev updates the property ID that represents the reflection NFTs
+    * @param newReflectionId the new property ID of the reflection NFTs
+     */
+    function updateReflectionId(uint256 newReflectionId) public onlyOwner {
+        reflectionId = newReflectionId;
+    }
+
 }

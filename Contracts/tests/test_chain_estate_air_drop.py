@@ -215,7 +215,7 @@ def test_user_cant_claim_when_not_invested_long_enough():
 
     with pytest.raises(exceptions.VirtualMachineError) as ex:
         chainEstateAirDrop.claimAirDrop({"from": account})
-    assert "Too many of your recent investments were made to close to the air drop time. You can claim your rewards in" in str(ex.value)    
+    assert "Too many of your recent investments were made too close to the air drop time. You can claim your rewards in" in str(ex.value)    
 
 def test_user_cant_claim_when_airdrop_is_closed():
     # Arrange
