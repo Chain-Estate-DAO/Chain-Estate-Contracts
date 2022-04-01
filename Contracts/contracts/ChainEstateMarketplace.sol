@@ -68,6 +68,9 @@ contract ChainEstateMarketplace is ReentrancyGuard, Ownable {
   // References the deployed Chain Estate NFT contract.
   ChainEstateNFT public CHESNFT;
 
+  // Determines if users can hold more than one revenue generating (reflection) NFT or not.
+  bool public canHaveMultipleReflectionNFTs = false;
+
   constructor(address payable CHESTokenAddress) {
     CHES = ChainEstateToken(CHESTokenAddress);
   }
@@ -182,6 +185,14 @@ contract ChainEstateMarketplace is ReentrancyGuard, Ownable {
       require(msg.sender == CHESNFT.tokenIdToWhitelistAddress(tokenId), "This NFT has been assigned to someone through a Whitelist spot. Only they can purchase this NFT.");
     }
 
+    uint256[] memory reflectionTokenIds = CHESNFT.getReflectionTokenIds();
+    
+    if (CHESNFT.tokenIdToPropertyId(tokenId) == CHESNFT.reflectionId() && !canHaveMultipleReflectionNFTs) {
+      for (uint256 i=0; i < reflectionTokenIds.length; i++) {
+        require(CHESNFT.ownerOf(reflectionTokenIds[i]) != msg.sender, "You can only own one revenue generating NFT and you already have one.");
+      }
+    }
+
     uint price = idToMarketItem[itemId].price;
     require(amountIn == price, "Please submit the asking price in order to complete the purchase");
 
@@ -192,8 +203,6 @@ contract ChainEstateMarketplace is ReentrancyGuard, Ownable {
     idToMarketItem[itemId].sold = true;
     _itemsSold.increment();
     if (idToMarketItem[itemId].seller != owner()) {
-        uint256[] memory reflectionTokenIds = CHESNFT.getReflectionTokenIds();
-
         for (uint256 i=0; i < reflectionTokenIds.length; i++) {
           if (CHESNFT.ownerOf(reflectionTokenIds[i]) == msg.sender && reflectionTokenIds[i] == tokenId) {
             payable(owner()).transfer(idToMarketItem[itemId].listingPrice / reflectionTokenIds.length);
@@ -343,6 +352,14 @@ contract ChainEstateMarketplace is ReentrancyGuard, Ownable {
   */
   function updateBlackList(address user, bool blacklisted) public onlyOwner {
     blacklist[user] = blacklisted;
+  }
+
+  /**
+  * @dev Updates the flag that determines if users can have more than one of the revenue generating (reflection) NFTs
+  * @param multipleReflectionNFTsFlag bool value to determine if users can have multiple of the revenue generating NFTs
+  */
+  function updateCanHaveMultipleReflectionNFTs(bool multipleReflectionNFTsFlag) public onlyOwner {
+    canHaveMultipleReflectionNFTs = multipleReflectionNFTsFlag;
   }
 
 }

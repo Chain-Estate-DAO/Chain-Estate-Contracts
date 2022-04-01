@@ -101,6 +101,9 @@ def test_chain_estate_marketplace_reflection_nfts():
 
     chainEstateToken.setContractCHESDivisor(1, {"from": account})
 
+    chainEstateToken.excludeUserFromFees(chainEstateMarketplace.address, {"from": account})
+    chainEstateMarketplace.updateCanHaveMultipleReflectionNFTs(True, {"from": account})
+
     # Give some tokens to each of the accounts.
     chainEstateToken.transfer(account2.address, 1000000000, {"from": account})
     chainEstateToken.transfer(account3.address, 1000000000, {"from": account})
@@ -339,7 +342,7 @@ def test_chain_estate_marketplace():
     # User can't purchase an NFT without first approving the marketplace to spend their CHES tokens
     with pytest.raises(exceptions.VirtualMachineError) as ex:
         chainEstateMarketplace.createMarketSale(chainEstateNFT.address, tokenId, NFTPrice, {"from": account5})
-    assert "revert: ERC20: transfer amount exceeds allowance" in str(ex.value)
+    assert "revert: ERC20: insufficient allowance" in str(ex.value)
 
     # User can purchase the NFT listed on the marketplace
     initialAccountBalance = chainEstateToken.balanceOf(account5.address)

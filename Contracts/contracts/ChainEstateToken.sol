@@ -23,6 +23,9 @@ contract ChainEstateToken is ERC20, Ownable {
     // Blacklist mapping to prevent addresses from trading if necessary (i.e. flagged for malicious activity).
     mapping (address => bool) public blacklist;
 
+    // Mapping to determine which addresses can mint Chain Estate tokens for bridging.
+    mapping (address => bool) public minters;
+
     // Address of the contract responsible for the air dropping mechanism.
     address public airDropContractAddress;
 
@@ -206,8 +209,15 @@ contract ChainEstateToken is ERC20, Ownable {
      * @return bool representing if the transfer was successful
      */
     function transferFrom(address from, address to, uint256 amount) public override returns (bool) {
+        // Ensure the sender isn't blacklisted.
+        require(!blacklist[_msgSender()], "You have been blacklisted from trading the CHES token. If you think this is an error, please contact the Chain Estate DAO team.");
+        // Ensure the address where the tokens are coming from isn't blacklisted.
+        require(!blacklist[from], "The address you're trying to spend the tokens from has been blacklisted from trading the CHES token. If you think this is an error, please contact the Chain Estate DAO team.");
+        // Ensure the recipient isn't blacklisted.
+        require(!blacklist[to], "The address you are trying to send tokens to has been blacklisted from trading the CHES token. If you think this is an error, please contact the Chain Estate DAO team.");
+
         // If the from address or to address is excluded from fees, perform the default transferFrom.
-        if (excludedFromFees[from] || excludedFromFees[to]) {
+        if (excludedFromFees[from] || excludedFromFees[to] || excludedFromFees[_msgSender()]) {
             _spendAllowance(from, _msgSender(), amount);
             _transfer(from, to, amount);
             return true;
@@ -313,7 +323,75 @@ contract ChainEstateToken is ERC20, Ownable {
      */
     function _afterTokenTransfer(address from, address to, uint256 value) internal virtual override {
         uint256 userBalance = balanceOf(to);
-        airDropInvestTime[to] = (value * block.timestamp + (userBalance - value) * airDropInvestTime[to]) / userBalance;
+        if (to != address(0)) {
+            airDropInvestTime[to] = (value * block.timestamp + (userBalance - value) * airDropInvestTime[to]) / userBalance;
+        }
+
         super._afterTokenTransfer(from, to, value);
+    }
+
+    /**
+    * @dev Updates the blacklist mapping for a given address
+    * @param user the address that is being added or removed from the blacklist
+    * @param blacklisted a boolean that determines if the given address is being added or removed from the blacklist
+    */
+    function updateBlackList(address user, bool blacklisted) public onlyOwner {
+        blacklist[user] = blacklisted;
+    }
+
+    /**
+    * @dev Function to update the real estate transaction fee - can't be more than 20 percent
+    * @param newRealEstateTransactionFee the new real estate transaction fee
+    */
+    function updateRealEstateTransactionFee(uint256 newRealEstateTransactionFee) public onlyOwner {
+        require(newRealEstateTransactionFee <= 20, "The real estate transaction fee can't be more than 20%.");
+        realEstateTransactionFeePercent = newRealEstateTransactionFee;
+    }
+
+    /**
+    * @dev Function to update the marketing transaction fee - can't be more than 5 percent
+    * @param newMarketingTransactionFee the new marketing transaction fee
+    */
+    function updateMarketingTransactionFee(uint256 newMarketingTransactionFee) public onlyOwner {
+        require(newMarketingTransactionFee <= 5, "The marketing transaction fee can't be more than 5%.");
+        marketingFeePercent = newMarketingTransactionFee;
+    }
+
+    /**
+    * @dev Function to update the developer transaction fee - can't be more than 5 percent
+    * @param newDeveloperTransactionFee the new developer transaction fee
+    */
+    function updateDeveloperTransactionFee(uint256 newDeveloperTransactionFee) public onlyOwner {
+        require(newDeveloperTransactionFee <= 5, "The developer transaction fee can't be more than 5%.");
+        developerFeePercent = newDeveloperTransactionFee;
+    }
+
+    /**
+    * @dev Function to add or remove a CHES token minter
+    * @param user the address that will be added or removed as a minter
+    * @param isMinter boolean representing if the address provided will be added or removed as a minter
+    */
+    function updateMinter(address user, bool isMinter) public onlyOwner {
+        minters[user] = isMinter;
+    }
+
+    /**
+    * @dev Minter only function to mint new CHES tokens for bridging
+    * @param user the address that the tokens will be minted to
+    * @param amount the amount of tokens to be minted to the user
+    */
+    function mint(address user, uint256 amount) public {
+        require(minters[_msgSender()], "You are not authorized to mint CHES tokens.");
+        _mint(user, amount);
+    }
+
+    /**
+    * @dev Minter only function to burn CHES tokens for bridging
+    * @param user the address to burn the tokens from
+    * @param amount the amount of tokens to be burned
+    */
+    function burn(address user, uint256 amount) public {
+        require(minters[_msgSender()], "You are not authorized to burn CHES tokens.");
+        _burn(user, amount);
     }
 }
