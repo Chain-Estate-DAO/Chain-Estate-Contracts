@@ -5,7 +5,7 @@ from web3 import Web3
 # CHAIN_ESTATE_TOKEN_ADDRESS_RINKEBY = "0xd2cf313CdAD8F99bCdEd14120d679c15218b787A"
 CHAIN_ESTATE_TOKEN_ADDRESS_TEST = "0x42b3be0E4769D5715b7D5a8D8D765C2E9D2aeD9D"
 CHAIN_ESTATE_TOKEN_ADDRESS = "0x31832D10f68D3112d847Bd924331F3d182d268C4"
-PROD = True
+PROD = False
 
 def deploy_chain_estate_marketplace(chainEstateTokenAddress=None):
     account = retrieve_account()

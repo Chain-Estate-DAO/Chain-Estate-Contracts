@@ -83,6 +83,9 @@ def test_user_can_claim_air_drop():
     chainEstateAirDrop.changeAirDropMinimumToInvest(tokensSent, {"from": account})
     print(f"Air drop time stamp: {chainEstateToken.airDropInvestTime(account.address)}")
     chainEstateAirDrop.openAirDrop({"from": account})
+    chain.mine(100)
+    chain.sleep(100)
+    chain.mine(100)
     chainEstateAirDrop.claimAirDrop({"from": account})
 
     # Assert
