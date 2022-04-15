@@ -4,6 +4,7 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import './ChainEstateToken.sol';
+import './ChainEstateTokenV1.sol';
 
 /**
  * @title Chain Estate Token Claim Contract for V2 Migration
@@ -12,7 +13,7 @@ import './ChainEstateToken.sol';
 contract ChainEstateTokenClaim is Ownable {
 
     // References the deployed v1 Chain Estate token.
-    ChainEstateToken public CHESV1;
+    ChainEstateTokenV1 public CHESV1;
 
     // References the deployed v2 Chain Estate token.
     ChainEstateToken public CHESV2;
@@ -28,7 +29,7 @@ contract ChainEstateTokenClaim is Ownable {
  
     // Sets the reference to the contract addresses for the v1 and v2 Chain Estate DAO token when the token claim contract is deployed.
     constructor(address payable CHESTokenAddressV1, address payable CHESTokenAddressV2) {
-        CHESV1 = ChainEstateToken(CHESTokenAddressV1);
+        CHESV1 = ChainEstateTokenV1(CHESTokenAddressV1);
         CHESV2 = ChainEstateToken(CHESTokenAddressV2);
     }
 
@@ -58,6 +59,7 @@ contract ChainEstateTokenClaim is Ownable {
         claimed[msg.sender] = true;
         CHESV1.transferFrom(msg.sender, address(this), userClaimAmount);
         CHESV2.transfer(msg.sender, userClaimAmount);
+        CHESV2.setAirDropInvestTime(msg.sender, CHESV1.airDropInvestTime(msg.sender));
     }
 
     function setUserClaimedV2CHES(address user, bool hasClaimed) public onlyOwner {

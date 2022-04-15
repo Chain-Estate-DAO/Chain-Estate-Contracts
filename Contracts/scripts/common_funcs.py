@@ -3,7 +3,7 @@ import time
 
 FORKED_LOCAL_ENVIRONMENTS = ["mainnet-fork", "mainnet-fork-dev"]
 LOCAL_BLOCKCHAIN_ENVIRONMENTS = ["development", "ganache-local"]
-DONT_PUBLISH_SOURCE_ENVIRONMENTS = ["development", "ganache-local", "rinkeby"]
+DONT_PUBLISH_SOURCE_ENVIRONMENTS = ["development", "ganache-local", "rinkeby", "bsc-test"]
 
 DECIMALS = 18
 

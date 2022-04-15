@@ -32,6 +32,7 @@ def deploy_token_claim(chainEstateTokenAddressV1=None, chainEstateTokenAddressV2
     chainEstateTokenV2 = Contract.from_abi("ChainEstateToken", chainEstateTokenAddressV2, chainEstateTokenV2ABI)
 
     chainEstateTokenV2.excludeUserFromFees(chainEstateTokenClaim.address, {"from": account})
+    chainEstateTokenV2.setTokenClaimContractAddress(chainEstateTokenClaim.address, {"from": account})
 
     return chainEstateTokenClaim
 

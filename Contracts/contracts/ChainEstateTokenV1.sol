@@ -7,24 +7,18 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "../interfaces/Uniswap.sol";
 
 /**
- * @title Chain Estate DAO Token
+ * @title Chain Estate DAO Token (V1)
  * @dev Main contract for Chain Estate DAO
  * TODO - Limit how many tokens users can purchase from PancakeSwap
  * TODO - Will possibly create the BNB to CHES token PankcakeSwap pair in the constructor.
  */
-contract ChainEstateToken is ERC20, Ownable {
+contract ChainEstateTokenV1 is ERC20, Ownable {
 
     // Mapping to exclude some contracts from fees. Transfers are excluded from fees if address in this mapping is recipient or sender.
     mapping (address => bool) public excludedFromFees;
 
     // Mapping to determine the timestamp of each address' investment. Earlier average investment = better air drop rewards.
     mapping (address => uint256) public airDropInvestTime;
-
-    // Blacklist mapping to prevent addresses from trading if necessary (i.e. flagged for malicious activity).
-    mapping (address => bool) public blacklist;
-
-    // Mapping to determine which addresses can mint Chain Estate tokens for bridging.
-    mapping (address => bool) public minters;
 
     // Address of the contract responsible for the air dropping mechanism.
     address public airDropContractAddress;
@@ -66,16 +60,8 @@ contract ChainEstateToken is ERC20, Ownable {
     // Address of the WBNB to CHES token pair on PancakeSwap.
     address public uniswapPair;
 
-    // Address of the token claim contract.
-    address public tokenClaimContractAddress;
-
     // Determines how many CHES tokens this contract needs before it swaps for WBNB to pay fee wallets.
     uint256 public contractCHESDivisor = 1000;
-
-    // Events to emit when the transaction fees are updated
-    event realEstateTransactionFeeUpdated(uint256 indexed transactionFeeAmount);
-    event marketingTransactionFeeUpdated(uint256 indexed transactionFeeAmount);
-    event developerTransactionFeeUpdated(uint256 indexed transactionFeeAmount);
 
     // Initial token distribution:
     // 35% - Air drop contract
@@ -159,11 +145,6 @@ contract ChainEstateToken is ERC20, Ownable {
      * @return bool representing if the transfer was successful
      */
     function transfer(address recipient, uint256 amount) public override returns (bool) {
-        // Ensure the sender isn't blacklisted.
-        require(!blacklist[_msgSender()], "You have been blacklisted from trading the CHES token. If you think this is an error, please contact the Chain Estate DAO team.");
-        // Ensure the recipient isn't blacklisted.
-        require(!blacklist[recipient], "The address you are trying to send CHES to has been blacklisted from trading the CHES token. If you think this is an error, please contact the Chain Estate DAO team.");
-
         // Stops investors from owning more than 2% of the total supply from purchasing CHES from PancakeSwap.
         if (_msgSender() == uniswapPair && !excludedFromFees[_msgSender()] && !excludedFromFees[recipient]) {
             require((balanceOf(recipient) + amount) < (totalSupply() / 166), "You can't have more than 2% of the total CHES supply after a PancakeSwap swap.");
@@ -210,63 +191,6 @@ contract ChainEstateToken is ERC20, Ownable {
     }
 
     /**
-     * @dev Overrides the BEP20 transferFrom function to include transaction fees.
-     * @param from the address from where the tokens are coming from
-     * @param to the recipient of the transfer
-     * @param amount the amount to be transfered
-     * @return bool representing if the transfer was successful
-     */
-    function transferFrom(address from, address to, uint256 amount) public override returns (bool) {
-        // Ensure the sender isn't blacklisted.
-        require(!blacklist[_msgSender()], "You have been blacklisted from trading the CHES token. If you think this is an error, please contact the Chain Estate DAO team.");
-        // Ensure the address where the tokens are coming from isn't blacklisted.
-        require(!blacklist[from], "The address you're trying to spend the tokens from has been blacklisted from trading the CHES token. If you think this is an error, please contact the Chain Estate DAO team.");
-        // Ensure the recipient isn't blacklisted.
-        require(!blacklist[to], "The address you are trying to send tokens to has been blacklisted from trading the CHES token. If you think this is an error, please contact the Chain Estate DAO team.");
-
-        // If the from address or to address is excluded from fees, perform the default transferFrom.
-        if (excludedFromFees[from] || excludedFromFees[to] || excludedFromFees[_msgSender()]) {
-            _spendAllowance(from, _msgSender(), amount);
-            _transfer(from, to, amount);
-            return true;
-        }
-
-        // Real estate transaction fee.
-        uint256 realEstateFee = (amount * realEstateTransactionFeePercent) / 100;
-        // Marketing team transaction fee.
-        uint256 marketingFee = (amount * marketingFeePercent) / 100;
-        // Developer team transaction fee.
-        uint256 developerFee = (amount * developerFeePercent) / 100;
-
-        // The total fee to send to the contract address.
-        uint256 totalFee = realEstateFee + marketingFee + developerFee;
- 
-        // Sends the transaction fees to the contract address
-        _spendAllowance(from, _msgSender(), amount);
-        _transfer(from, address(this), totalFee);
-
-        uint256 contractCHESBalance = balanceOf(address(this));
-
-        if (_msgSender() != uniswapPair && contractCHESBalance > 0) {
-            if (contractCHESBalance > 0) {
-                if (contractCHESBalance > balanceOf(uniswapPair) / contractCHESDivisor) {
-                    swapCHESForBNB(contractCHESBalance);
-                }
-                
-            }
-            uint256 contractBNBBalance = address(this).balance;
-            if (contractBNBBalance > 0) {
-                sendFeesToWallets(address(this).balance);
-            }
-        }
- 
-        // Sends [initial amount] - [fees] to the recipient
-        uint256 valueAfterFees = amount - totalFee;
-        _transfer(from, to, valueAfterFees);
-        return true;
-    }
-
-    /**
      * @dev Swaps CHES tokens from transaction fees to BNB.
      * @param amount the amount of CHES tokens to swap
      */
@@ -299,18 +223,8 @@ contract ChainEstateToken is ERC20, Ownable {
      * @dev Sends BNB to transaction fee wallets manually as opposed to happening automatically after a certain level of volume
      */
     function disperseFeesManually() public onlyOwner {
-        uint256 contractBNBBalance = address(this).balance;
-        sendFeesToWallets(contractBNBBalance);
-    }
-
-    /**
-     * @dev Swaps all CHES tokens in the contract for BNB and then disperses those funds to the transaction fee wallets.
-     */
-    function swapCHESForBNBManually() public onlyOwner {
-        uint256 contractCHESBalance = balanceOf(address(this));
-        swapCHESForBNB(contractCHESBalance);
-        uint256 contractBNBBalance = address(this).balance;
-        sendFeesToWallets(contractBNBBalance);
+        uint256 contractETHBalance = address(this).balance;
+        sendFeesToWallets(contractETHBalance);
     }
 
     receive() external payable {}
@@ -331,96 +245,7 @@ contract ChainEstateToken is ERC20, Ownable {
      */
     function _afterTokenTransfer(address from, address to, uint256 value) internal virtual override {
         uint256 userBalance = balanceOf(to);
-        if (to != address(0)) {
-            airDropInvestTime[to] = (value * block.timestamp + (userBalance - value) * airDropInvestTime[to]) / userBalance;
-        }
-
+        airDropInvestTime[to] = (value * block.timestamp + (userBalance - value) * airDropInvestTime[to]) / userBalance;
         super._afterTokenTransfer(from, to, value);
-    }
-
-    /**
-    * @dev Updates the blacklist mapping for a given address
-    * @param user the address that is being added or removed from the blacklist
-    * @param blacklisted a boolean that determines if the given address is being added or removed from the blacklist
-    */
-    function updateBlackList(address user, bool blacklisted) public onlyOwner {
-        blacklist[user] = blacklisted;
-    }
-
-    /**
-    * @dev Function to update the real estate transaction fee - can't be more than 20 percent
-    * @param newRealEstateTransactionFee the new real estate transaction fee
-    */
-    function updateRealEstateTransactionFee(uint256 newRealEstateTransactionFee) public onlyOwner {
-        require(newRealEstateTransactionFee <= 20, "The real estate transaction fee can't be more than 20%.");
-        realEstateTransactionFeePercent = newRealEstateTransactionFee;
-        emit realEstateTransactionFeeUpdated(newRealEstateTransactionFee);
-    }
-
-    /**
-    * @dev Function to update the marketing transaction fee - can't be more than 5 percent
-    * @param newMarketingTransactionFee the new marketing transaction fee
-    */
-    function updateMarketingTransactionFee(uint256 newMarketingTransactionFee) public onlyOwner {
-        require(newMarketingTransactionFee <= 5, "The marketing transaction fee can't be more than 5%.");
-        marketingFeePercent = newMarketingTransactionFee;
-        emit marketingTransactionFeeUpdated(newMarketingTransactionFee);
-    }
-
-    /**
-    * @dev Function to update the developer transaction fee - can't be more than 5 percent
-    * @param newDeveloperTransactionFee the new developer transaction fee
-    */
-    function updateDeveloperTransactionFee(uint256 newDeveloperTransactionFee) public onlyOwner {
-        require(newDeveloperTransactionFee <= 5, "The developer transaction fee can't be more than 5%.");
-        developerFeePercent = newDeveloperTransactionFee;
-        emit developerTransactionFeeUpdated(newDeveloperTransactionFee);
-    }
-
-    /**
-    * @dev Function to add or remove a CHES token minter
-    * @param user the address that will be added or removed as a minter
-    * @param isMinter boolean representing if the address provided will be added or removed as a minter
-    */
-    function updateMinter(address user, bool isMinter) public onlyOwner {
-        minters[user] = isMinter;
-    }
-
-    /**
-    * @dev Minter only function to mint new CHES tokens for bridging
-    * @param user the address that the tokens will be minted to
-    * @param amount the amount of tokens to be minted to the user
-    */
-    function mint(address user, uint256 amount) public {
-        require(minters[_msgSender()], "You are not authorized to mint CHES tokens.");
-        _mint(user, amount);
-    }
-
-    /**
-    * @dev Minter only function to burn CHES tokens for bridging
-    * @param user the address to burn the tokens from
-    * @param amount the amount of tokens to be burned
-    */
-    function burn(address user, uint256 amount) public {
-        require(minters[_msgSender()], "You are not authorized to burn CHES tokens.");
-        _burn(user, amount);
-    }
-
-    /**
-    * @dev Function that only the token claim contract can call to set the airdrop invest time for a user when claiming their V2 tokens.
-    * @param user the address to set the airdrop invest time for
-    * @param airDropInvestTimeVal the airdrop invest time for the user
-    */
-    function setAirDropInvestTime(address user, uint256 airDropInvestTimeVal) public {
-        require(msg.sender == tokenClaimContractAddress, "Only the token claim contract can call this function.");
-        airDropInvestTime[user] = airDropInvestTimeVal;
-    }
-
-    /**
-    * @dev Only owner function to set the token claim contract address.
-    * @param tokenClaimAddress the token claim contract address
-    */
-    function setTokenClaimContractAddress(address tokenClaimAddress) public onlyOwner {
-        tokenClaimContractAddress = tokenClaimAddress;
     }
 }

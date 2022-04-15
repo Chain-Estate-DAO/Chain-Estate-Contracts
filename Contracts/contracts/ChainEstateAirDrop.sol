@@ -130,7 +130,6 @@ contract ChainEstateAirDrop is Ownable {
         require(airDropActive, "The air drop is not currently active. You can claim your air drop rewards when an air drop is ongoing.");
         require(!userClaimedAirDrop[claimAddress], "You've already claimed your rewards from this air drop!");
         require(CHES.airDropInvestTime(claimAddress) > 0, "Your investing time needs to be greater than 0.");
-        require(CHES.airDropInvestTime(claimAddress) > CHES.initialTimeStamp(), "Your investing time needs to be greater than the timestamp of the contract deployment.");
  
         // The user's investments can't be too recent or people would be encouraged to buy CHES,
         // claim the air drop, and then sell the CHES for quick profits.

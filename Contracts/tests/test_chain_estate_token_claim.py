@@ -1,6 +1,8 @@
-from scripts.common_funcs import retrieve_account, waitForTransactionsToComplete, LOCAL_BLOCKCHAIN_ENVIRONMENTS, DECIMALS
+from scripts.common_funcs import retrieve_account, waitForTransactionsToComplete, DONT_PUBLISH_SOURCE_ENVIRONMENTS, LOCAL_BLOCKCHAIN_ENVIRONMENTS, DECIMALS
 from scripts.deploy import deploy_chain_estate
+from scripts.deployV1 import deploy_chain_estate_V1
 from scripts.deploy_token_claim import deploy_token_claim
+from scripts.set_CHES_claim_balances import set_CHES_claim_balances
 from brownie import network, accounts, exceptions, chain
 from web3 import Web3
 from pathlib import Path
@@ -21,7 +23,7 @@ def test_owner_can_setup_balances():
     account3 = retrieve_account(3)
     account4 = retrieve_account(4)
     account5 = retrieve_account(5)
-    chainEstateTokenV1, chainEstateAirDropV1, _ = deploy_chain_estate()
+    chainEstateTokenV1, chainEstateAirDropV1, _ = deploy_chain_estate_V1()
     chainEstateTokenV2, chainEstateAirDropV2, _ = deploy_chain_estate()
     chainEstateTokenClaim = deploy_token_claim(chainEstateTokenV1.address, chainEstateTokenV2.address)
 
@@ -45,7 +47,7 @@ def test_non_owner_cant_setup_balances():
     account3 = retrieve_account(3)
     account4 = retrieve_account(4)
     account5 = retrieve_account(5)
-    chainEstateTokenV1, chainEstateAirDropV1, _ = deploy_chain_estate()
+    chainEstateTokenV1, chainEstateAirDropV1, _ = deploy_chain_estate_V1()
     chainEstateTokenV2, chainEstateAirDropV2, _ = deploy_chain_estate()
     chainEstateTokenClaim = deploy_token_claim(chainEstateTokenV1.address, chainEstateTokenV2.address)
 
@@ -64,7 +66,7 @@ def test_owner_can_update_claimed():
         
     account = retrieve_account()
     account2 = retrieve_account(2)
-    chainEstateTokenV1, chainEstateAirDropV1, _ = deploy_chain_estate()
+    chainEstateTokenV1, chainEstateAirDropV1, _ = deploy_chain_estate_V1()
     chainEstateTokenV2, chainEstateAirDropV2, _ = deploy_chain_estate()
     chainEstateTokenClaim = deploy_token_claim(chainEstateTokenV1.address, chainEstateTokenV2.address)
 
@@ -82,7 +84,7 @@ def test_non_owner_cant_update_claimed():
     account = retrieve_account()
     account2 = retrieve_account(2)
     account3 = retrieve_account(3)
-    chainEstateTokenV1, chainEstateAirDropV1, _ = deploy_chain_estate()
+    chainEstateTokenV1, chainEstateAirDropV1, _ = deploy_chain_estate_V1()
     chainEstateTokenV2, chainEstateAirDropV2, _ = deploy_chain_estate()
     chainEstateTokenClaim = deploy_token_claim(chainEstateTokenV1.address, chainEstateTokenV2.address)
 
@@ -98,7 +100,7 @@ def test_owner_can_update_user_balance():
         
     account = retrieve_account()
     account2 = retrieve_account(2)
-    chainEstateTokenV1, chainEstateAirDropV1, _ = deploy_chain_estate()
+    chainEstateTokenV1, chainEstateAirDropV1, _ = deploy_chain_estate_V1()
     chainEstateTokenV2, chainEstateAirDropV2, _ = deploy_chain_estate()
     chainEstateTokenClaim = deploy_token_claim(chainEstateTokenV1.address, chainEstateTokenV2.address)
 
@@ -117,7 +119,7 @@ def test_non_owner_cant_update_user_balance():
     account = retrieve_account()
     account2 = retrieve_account(2)
     account3 = retrieve_account(3)
-    chainEstateTokenV1, chainEstateAirDropV1, _ = deploy_chain_estate()
+    chainEstateTokenV1, chainEstateAirDropV1, _ = deploy_chain_estate_V1()
     chainEstateTokenV2, chainEstateAirDropV2, _ = deploy_chain_estate()
     chainEstateTokenClaim = deploy_token_claim(chainEstateTokenV1.address, chainEstateTokenV2.address)
 
@@ -137,7 +139,7 @@ def test_user_can_claim_v2_CHES_tokens():
     account3 = retrieve_account(3)
     account4 = retrieve_account(4)
     account5 = retrieve_account(5)
-    chainEstateTokenV1, chainEstateAirDropV1, _ = deploy_chain_estate()
+    chainEstateTokenV1, chainEstateAirDropV1, _ = deploy_chain_estate_V1()
     chainEstateTokenV2, chainEstateAirDropV2, _ = deploy_chain_estate()
     chainEstateTokenClaim = deploy_token_claim(chainEstateTokenV1.address, chainEstateTokenV2.address)
 
@@ -151,6 +153,12 @@ def test_user_can_claim_v2_CHES_tokens():
     chainEstateTokenV1.transfer(account5.address, account5Balance, {"from": account})
 
     # Act
+    initialTimeStamp = chain.time()
+    chain.mine(100)
+    chain.sleep(100)
+    chain.mine(100)
+    currentTimeStamp = chain.time()
+
     account1Balance = chainEstateTokenV1.balanceOf(account.address)
     totalBalance = account1Balance + account2Balance + account3Balance + account4Balance + account5Balance
 
@@ -196,6 +204,13 @@ def test_user_can_claim_v2_CHES_tokens():
     assert chainEstateTokenClaim.claimed(account4.address) == True
     assert chainEstateTokenClaim.claimed(account5.address) == True
 
+    assert initialTimeStamp < currentTimeStamp
+    assert abs(chainEstateTokenV2.airDropInvestTime(account.address) - initialTimeStamp) < 20
+    assert abs(chainEstateTokenV2.airDropInvestTime(account2.address) - initialTimeStamp) < 20
+    assert abs(chainEstateTokenV2.airDropInvestTime(account3.address) - initialTimeStamp) < 20
+    assert abs(chainEstateTokenV2.airDropInvestTime(account4.address) - initialTimeStamp) < 20
+    assert abs(chainEstateTokenV2.airDropInvestTime(account5.address) - initialTimeStamp) < 20
+
 def test_user_cant_claim_tokens_twice():
     # Arrange
     if network.show_active() not in LOCAL_BLOCKCHAIN_ENVIRONMENTS:
@@ -203,7 +218,7 @@ def test_user_cant_claim_tokens_twice():
         
     account = retrieve_account()
     account2 = retrieve_account(2)
-    chainEstateTokenV1, chainEstateAirDropV1, _ = deploy_chain_estate()
+    chainEstateTokenV1, chainEstateAirDropV1, _ = deploy_chain_estate_V1()
     chainEstateTokenV2, chainEstateAirDropV2, _ = deploy_chain_estate()
     chainEstateTokenClaim = deploy_token_claim(chainEstateTokenV1.address, chainEstateTokenV2.address)
 
@@ -236,7 +251,7 @@ def test_user_cant_claim_tokens_before_approving_v1_transfer():
         
     account = retrieve_account()
     account2 = retrieve_account(2)
-    chainEstateTokenV1, chainEstateAirDropV1, _ = deploy_chain_estate()
+    chainEstateTokenV1, chainEstateAirDropV1, _ = deploy_chain_estate_V1()
     chainEstateTokenV2, chainEstateAirDropV2, _ = deploy_chain_estate()
     chainEstateTokenClaim = deploy_token_claim(chainEstateTokenV1.address, chainEstateTokenV2.address)
 
@@ -266,7 +281,7 @@ def test_user_cant_claim_tokens_after_selling():
         
     account = retrieve_account()
     account2 = retrieve_account(2)
-    chainEstateTokenV1, chainEstateAirDropV1, _ = deploy_chain_estate()
+    chainEstateTokenV1, chainEstateAirDropV1, _ = deploy_chain_estate_V1()
     chainEstateTokenV2, chainEstateAirDropV2, _ = deploy_chain_estate()
     chainEstateTokenClaim = deploy_token_claim(chainEstateTokenV1.address, chainEstateTokenV2.address)
 
@@ -298,7 +313,7 @@ def test_owner_can_withdraw_excess_v2_tokens():
         
     account = retrieve_account()
     account2 = retrieve_account(2)
-    chainEstateTokenV1, chainEstateAirDropV1, _ = deploy_chain_estate()
+    chainEstateTokenV1, chainEstateAirDropV1, _ = deploy_chain_estate_V1()
     chainEstateTokenV2, chainEstateAirDropV2, _ = deploy_chain_estate()
     chainEstateTokenClaim = deploy_token_claim(chainEstateTokenV1.address, chainEstateTokenV2.address)
 
@@ -334,7 +349,7 @@ def test_non_owner_cant_withdraw_excess_v2_tokens():
         
     account = retrieve_account()
     account2 = retrieve_account(2)
-    chainEstateTokenV1, chainEstateAirDropV1, _ = deploy_chain_estate()
+    chainEstateTokenV1, chainEstateAirDropV1, _ = deploy_chain_estate_V1()
     chainEstateTokenV2, chainEstateAirDropV2, _ = deploy_chain_estate()
     chainEstateTokenClaim = deploy_token_claim(chainEstateTokenV1.address, chainEstateTokenV2.address)
 
@@ -361,11 +376,11 @@ def test_non_owner_cant_withdraw_excess_v2_tokens():
 
 def test_owner_can_import_holder_data():
     # Arrange
-    # if network.show_active() not in LOCAL_BLOCKCHAIN_ENVIRONMENTS:
-    #     pytest.skip("This test is only for local blockchains.")
+    if network.show_active() not in LOCAL_BLOCKCHAIN_ENVIRONMENTS:
+        pytest.skip("This test is only for local blockchains.")
         
     account = retrieve_account()
-    chainEstateTokenV1, chainEstateAirDropV1, _ = deploy_chain_estate()
+    chainEstateTokenV1, chainEstateAirDropV1, _ = deploy_chain_estate_V1()
     chainEstateTokenV2, chainEstateAirDropV2, _ = deploy_chain_estate()
     chainEstateTokenClaim = deploy_token_claim(chainEstateTokenV1.address, chainEstateTokenV2.address)
 
@@ -403,12 +418,37 @@ def test_owner_can_import_holder_data():
     for i in range(len(accounts)):
         assert chainEstateTokenClaim.balances(accounts[i]) == balances[i]
     
+def test_set_CHES_balances_script_works():
+    # Arrange
+    if network.show_active() not in DONT_PUBLISH_SOURCE_ENVIRONMENTS:
+        pytest.skip("This test is only for local blockchains or testnet.")
+        
+    account = retrieve_account()
+    chainEstateTokenV1, chainEstateAirDropV1, _ = deploy_chain_estate_V1()
+    chainEstateTokenV2, chainEstateAirDropV2, _ = deploy_chain_estate()
+    chainEstateTokenClaim = deploy_token_claim(chainEstateTokenV1.address, chainEstateTokenV2.address)
+
+    # Act
+    set_CHES_claim_balances(chainEstateTokenClaim.address)
 
 
+    # Assert
+    accounts = []
+    balances = []
 
+    filePath = Path(__file__).parent.parent
+    with open(f'{filePath}/holder-data/CHESHolders.csv', 'r') as holderDataFile:
+        holderData = csv.reader(holderDataFile, delimiter=',')
 
+        for holder in holderData:
+            if holder[0] != "HolderAddress":
+                try:
+                    accounts.append(holder[0])
+                    balances.append(Web3.toWei(holder[1], "ether"))
+                except:
+                    pass
 
-
-
+    for i in range(len(accounts)):
+        assert chainEstateTokenClaim.balances(accounts[i]) == balances[i]
 
 
