@@ -10,7 +10,7 @@ PROD_DEVELOPER_ADDRESS = "0x9406B17dE6949aB3F32e7c6044b0b29e1987f9ab"
 PROD_LIQUIDITY_ADDRESS = "0xB164Eb7844F3A05Fd3eF01CF05Ac4961a74D47fF"
 BURN_ADDRESS = "0x000000000000000000000000000000000000dEaD"
 
-PROD = False
+PROD = True
 
 def deploy_chain_estate(realEstateWalletAddress=None, marketingWalletAddress=None, developerWalletAddress=None, liquidityWalletAddress=None, burnWalletAddress=None):
     account = retrieve_account()

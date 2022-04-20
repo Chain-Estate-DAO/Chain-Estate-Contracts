@@ -52,6 +52,7 @@ contract ChainEstateTokenClaim is Ownable {
 
         uint256 v1CHESBalance = CHESV1.balanceOf(msg.sender);
         uint256 userClaimAmount = balances[msg.sender];
+        require(userClaimAmount > 0, "You don't have any V2 CHES tokens to claim. If you believe this is an error, please contact the Chain Estate DAO team.");
         require(userClaimAmount <= v1CHESBalance, "You sold at least some of your V1 CHES tokens during the migration process so you cannot migrate to V2.");
 
         require(CHESV1.allowance(msg.sender, address(this)) >= userClaimAmount, "You must first allow the token claim contract to spend your V1 CHES tokens before you can claim your V2 CHES tokens.");
@@ -71,9 +72,17 @@ contract ChainEstateTokenClaim is Ownable {
     }
 
     /**
-     * @dev Only owner function to withdraw the remaining V2 CHES tokens after a while if some people didn't claim their V2 CHES tokens.
+     * @dev Only owner function to withdraw the V1 CHES tokens after users have sent them in the claim their V2 tokens.
     */
-    function withdrawV2CHESTokens() public onlyOwner {    
-        CHESV2.transfer(msg.sender, CHESV2.balanceOf(address(this)));
+    function withdrawV1CHESTokens() public onlyOwner {    
+        CHESV1.transfer(msg.sender, CHESV1.balanceOf(address(this)));
+    }
+
+    /**
+     * @dev Only owner function to withdraw V2 CHES tokens if absolutely necessary.
+     * @param amount the amount of V2 CHES tokens to withdraw from the token claim contract
+    */
+    function withdrawV2CHESTokens(uint256 amount) public onlyOwner {    
+        CHESV2.transfer(msg.sender, amount);
     }
 }

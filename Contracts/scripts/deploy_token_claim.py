@@ -4,10 +4,10 @@ from scripts.common_funcs import retrieve_account, LOCAL_BLOCKCHAIN_ENVIRONMENTS
 from web3 import Web3
 
 CHAIN_ESTATE_TOKEN_ADDRESS_V1_TEST = "0x42b3be0E4769D5715b7D5a8D8D765C2E9D2aeD9D"
-CHAIN_ESTATE_TOKEN_ADDRESS_V2_TEST = "0x42b3be0E4769D5715b7D5a8D8D765C2E9D2aeD9D"
+CHAIN_ESTATE_TOKEN_ADDRESS_V2_TEST = "0xaB527377C920009d92029Eb6C5a8C8c27591ad56"
 CHAIN_ESTATE_TOKEN_ADDRESS_V1 = "0x31832D10f68D3112d847Bd924331F3d182d268C4"
-CHAIN_ESTATE_TOKEN_ADDRESS_V2 = "0x31832D10f68D3112d847Bd924331F3d182d268C4"
-PROD = False
+CHAIN_ESTATE_TOKEN_ADDRESS_V2 = "0xe3647FB6024355dBC93133e6c4c74277366A4bdC"
+PROD = True
 
 def deploy_token_claim(chainEstateTokenAddressV1=None, chainEstateTokenAddressV2=None):
     account = retrieve_account()
@@ -33,6 +33,8 @@ def deploy_token_claim(chainEstateTokenAddressV1=None, chainEstateTokenAddressV2
 
     chainEstateTokenV2.excludeUserFromFees(chainEstateTokenClaim.address, {"from": account})
     chainEstateTokenV2.setTokenClaimContractAddress(chainEstateTokenClaim.address, {"from": account})
+
+    print("Excluded the chain estate token claim from fees and set the token claim contract for the v2 token.")
 
     return chainEstateTokenClaim
 

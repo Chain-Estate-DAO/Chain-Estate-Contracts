@@ -337,7 +337,7 @@ def test_owner_can_withdraw_excess_v2_tokens():
     chainEstateTokenV1.approve(chainEstateTokenClaim.address, account2V2Balance, {"from": account2})
     chainEstateTokenClaim.claimV2CHESTokens({"from": account2}) 
 
-    chainEstateTokenClaim.withdrawV2CHESTokens({"from": account})  
+    chainEstateTokenClaim.withdrawV2CHESTokens(chainEstateTokenV2.balanceOf(chainEstateTokenClaim.address), {"from": account})  
 
     # Assert
     assert chainEstateTokenV2.balanceOf(account.address) == accountBalance - account2V2Balance
@@ -371,7 +371,7 @@ def test_non_owner_cant_withdraw_excess_v2_tokens():
     chainEstateTokenClaim.claimV2CHESTokens({"from": account2}) 
 
     with pytest.raises(exceptions.VirtualMachineError) as ex:
-        chainEstateTokenClaim.withdrawV2CHESTokens({"from": account2})
+        chainEstateTokenClaim.withdrawV2CHESTokens(chainEstateTokenV2.balanceOf(account2.address), {"from": account2})
     assert "Ownable: caller is not the owner" in str(ex.value)
 
 def test_owner_can_import_holder_data():

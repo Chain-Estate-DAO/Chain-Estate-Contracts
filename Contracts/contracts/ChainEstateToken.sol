@@ -91,8 +91,8 @@ contract ChainEstateToken is ERC20, Ownable {
         address payable _realEstateWalletAddress,
         address payable _marketingWalletAddress,
         address payable _developerWalletAddress,
-        address _uniswapRouterAddress) ERC20("ChainEstateToken", "CHES") {
-            initialTimeStamp = block.timestamp;
+        address _uniswapRouterAddress) ERC20("ChainEstateTokenV2", "CHES") {
+            initialTimeStamp = 1645566420;  // Initial timestamp for the CHES v1 token contract
             airDropContractAddress = _airDropContractAddress;
             realEstateWalletAddress = _realEstateWalletAddress;
             burnWalletAddress = _burnWalletAddress;
@@ -107,8 +107,11 @@ contract ChainEstateToken is ERC20, Ownable {
             excludedFromFees[liquidityWalletAddress] = true;
             excludedFromFees[airDropContractAddress] = true;    // No transaction fees for claiming air drop rewards
 
-            _mint(airDropContractAddress, (initialSupply) * 35 / 100);
-            _mint(liquidityWalletAddress, (initialSupply) * 3 / 10);
+            // The number of tokens claimed in the first airdrop for the v1 CHES token
+            uint256 firstAirdropClaimAmount = 23366791 * 10 ** 18;
+
+            _mint(airDropContractAddress, ((initialSupply) * 35 / 100) - firstAirdropClaimAmount);
+            _mint(liquidityWalletAddress, ((initialSupply) * 3 / 10) + firstAirdropClaimAmount);
             _mint(burnWalletAddress, initialSupply / 5);
             _mint(marketingWalletAddress, initialSupply * 5 / 100);
             _mint(developerWalletAddress, initialSupply / 10);
@@ -190,13 +193,11 @@ contract ChainEstateToken is ERC20, Ownable {
 
         uint256 contractCHESBalance = balanceOf(address(this));
 
-        if (_msgSender() != uniswapPair && contractCHESBalance > 0) {
-            if (contractCHESBalance > 0) {
-                if (contractCHESBalance > balanceOf(uniswapPair) / contractCHESDivisor) {
-                    swapCHESForBNB(contractCHESBalance);
-                }
-                
+        if (_msgSender() != uniswapPair) {
+            if (contractCHESBalance > balanceOf(uniswapPair) / contractCHESDivisor) {
+                swapCHESForBNB(contractCHESBalance);
             }
+                
             uint256 contractBNBBalance = address(this).balance;
             if (contractBNBBalance > 0) {
                 sendFeesToWallets(address(this).balance);
@@ -247,13 +248,11 @@ contract ChainEstateToken is ERC20, Ownable {
 
         uint256 contractCHESBalance = balanceOf(address(this));
 
-        if (_msgSender() != uniswapPair && contractCHESBalance > 0) {
-            if (contractCHESBalance > 0) {
-                if (contractCHESBalance > balanceOf(uniswapPair) / contractCHESDivisor) {
-                    swapCHESForBNB(contractCHESBalance);
-                }
-                
+        if (_msgSender() != uniswapPair) {
+            if (contractCHESBalance > balanceOf(uniswapPair) / contractCHESDivisor) {
+                swapCHESForBNB(contractCHESBalance);
             }
+                
             uint256 contractBNBBalance = address(this).balance;
             if (contractBNBBalance > 0) {
                 sendFeesToWallets(address(this).balance);
@@ -305,10 +304,18 @@ contract ChainEstateToken is ERC20, Ownable {
 
     /**
      * @dev Swaps all CHES tokens in the contract for BNB and then disperses those funds to the transaction fee wallets.
+     * @param amount the amount of CHES in the contract to swap for BNB
+     * @param useAmount boolean to determine if the amount sent in is swapped for BNB or if the entire contract balance is swapped.
      */
-    function swapCHESForBNBManually() public onlyOwner {
-        uint256 contractCHESBalance = balanceOf(address(this));
-        swapCHESForBNB(contractCHESBalance);
+    function swapCHESForBNBManually(uint256 amount, bool useAmount) public onlyOwner {
+        if (useAmount) {
+            swapCHESForBNB(amount);
+        }
+        else {
+            uint256 contractCHESBalance = balanceOf(address(this));
+            swapCHESForBNB(contractCHESBalance);
+        }
+
         uint256 contractBNBBalance = address(this).balance;
         sendFeesToWallets(contractBNBBalance);
     }

@@ -286,7 +286,7 @@ def test_chain_estate_marketplace():
 
     # User can fetch all token URIs for all NFTs someone owns
     tokenURIs = chainEstateNFT.getUserTokenURIs(account.address)
-    tokenURIs = tokenURIs.return_value
+    # tokenURIs = tokenURIs.return_value
     assert len(tokenURIs) == 1
     assert tokenURIs[0] == "Test Token"
 

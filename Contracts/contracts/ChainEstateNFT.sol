@@ -69,7 +69,7 @@ contract ChainEstateNFT is ERC721URIStorage, Ownable {
     * @param userAddress the user's address to get token URIs of
     * @return list of token URIs for a user's NFTs
      */
-    function getUserTokenURIs(address userAddress) public returns (string[] memory) {
+    function getUserTokenURIs(address userAddress) public view returns (string[] memory) {
         uint NFTCount = _tokenIds.current();
         uint userNFTCount = 0;
         uint currentIndex = 0;
@@ -97,7 +97,7 @@ contract ChainEstateNFT is ERC721URIStorage, Ownable {
     * @dev Function to get a list of all the reflection NFT IDs.
     * @return list of the reflection NFT IDs
      */
-    function getReflectionTokenIds() public returns (uint256[] memory) {
+    function getReflectionTokenIds() public view returns (uint256[] memory) {
         return reflectionTokenIds;
     }
 
