@@ -1,13 +1,52 @@
 from scripts.common_funcs import retrieve_account, waitForTransactionsToComplete, LOCAL_BLOCKCHAIN_ENVIRONMENTS, DECIMALS
 from scripts.deploy import deploy_chain_estate
 from scripts.deploy_marketplace import deploy_chain_estate_marketplace
+from scripts.update_NFT_token_URIs import update_NFT_token_URIs
 from brownie import network, accounts, exceptions, chain
 from web3 import Web3
+import requests
 import pytest
 import time
 
 LIQUIDITY_SUPPLY = Web3.toWei(300000000, "ether")
 ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
+
+TEST_NFT_TOKEN_URI_UPDATE = True
+
+def test_chain_estate_NFT_token_URI_updating():
+    # Don't want to upload to IPFS all the time, so only run this test of the flag for it is set.
+    if not TEST_NFT_TOKEN_URI_UPDATE:
+        pytest.skip("The flag for this test isn't set so it won't be run.")
+
+    # First, get the accounts and deploy the smart contracts.
+    account = retrieve_account()
+    chainEstateToken, chainEstateAirDrop, _ = deploy_chain_estate()
+    chainEstateMarketplace, chainEstateNFT = deploy_chain_estate_marketplace(chainEstateToken.address)
+
+    NFT1TokenURI = '{\"name\": \"test NFT\", \"price\": \"1000\", \"image\": \"test image\"}'
+    NFT2TokenURI = '{\"name\": \"test NFT 2\", \"price\": \"10000\", \"image\": \"test image 2\"}'
+    NFT3TokenURI = '{\"name\": \"test NFT 3\", \"price\": \"100000\", \"image\": \"test image 3\"}'
+
+    NFTTokenURIs = [NFT1TokenURI, NFT2TokenURI, NFT3TokenURI]
+
+    for NFTTokenURI in NFTTokenURIs:
+        files = {'file': NFTTokenURI}
+        response = requests.post('https://ipfs.infura.io:5001/api/v0/add', files=files)
+        tokenURIHash = response.json()["Hash"]
+        newTokenURI = f"https://ipfs.infura.io/ipfs/{tokenURIHash}"
+
+        listingFee = Web3.toWei(0.05, "ether")
+        chainEstateNFT.createToken(newTokenURI, 0, listingFee, {"from": account})
+
+        NFTTokenURI = newTokenURI
+
+        print(newTokenURI)
+
+    update_NFT_token_URIs(chainEstateNFT.address, [1, 2, 3], ["D:\\Chain-Estate-Frontend\\public\\Apartment.png", "D:\\Chain-Estate-Frontend\\public\\SingleFamilyHome.png", "D:\\Chain-Estate-Frontend\\public\\Apartment.png"])
+
+    print(chainEstateNFT.tokenURI(1))
+    print(chainEstateNFT.tokenURI(2))
+    print(chainEstateNFT.tokenURI(3))
 
 def test_chain_estate_marketplace_whitelisting():
     # First, get the accounts and deploy the smart contracts.

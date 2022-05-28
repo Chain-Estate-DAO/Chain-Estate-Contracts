@@ -5,13 +5,12 @@ import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import './ChainEstateNFTV1.sol';
 
 /**
  * @title Chain Estate DAO NFT Contract
  * @dev NFT contract that will be used with the marketplace contract
  */
-contract ChainEstateNFT is ERC721URIStorage, Ownable {
+contract ChainEstateNFTV1 is ERC721URIStorage, Ownable {
     using Counters for Counters.Counter;
 
     // Counter to give each NFT a unique ID.
@@ -36,15 +35,8 @@ contract ChainEstateNFT is ERC721URIStorage, Ownable {
     // Array of the reflection token IDs for listing fees.
     uint256[] public reflectionTokenIds;
 
-    constructor(address _marketplaceAddress, address oldNFTAddress) ERC721("ChainEstateNFT", "CHESNFT") {
+    constructor(address _marketplaceAddress) ERC721("ChainEstateNFT", "CHESNFT") {
         marketplaceAddress = _marketplaceAddress;
-        ChainEstateNFTV1 oldNFTContract = ChainEstateNFTV1(oldNFTAddress);
-
-        uint oldNFTCount = oldNFTContract._tokenIds();
-
-        for (uint id = 1; id <= oldNFTCount; id++) {
-            uint currTokenId = createToken(oldNFTContract.tokenURI(id), oldNFTContract.tokenIdToPropertyId(id), oldNFTContract.tokenIdToListingFee(id));
-        }
     }
 
     /**
@@ -70,15 +62,6 @@ contract ChainEstateNFT is ERC721URIStorage, Ownable {
         }
 
         return newItemId;
-    }
-
-    /**
-    * @dev Setter function for the token URI of an NFT.
-    * @param tokenId the ID of the NFT to update the token URI of
-    * @param newTokenURI the token URI to update the NFT with
-     */
-    function setTokenURI(uint256 tokenId, string memory newTokenURI) public onlyOwner {
-        _setTokenURI(tokenId, newTokenURI);
     }
 
     /**
